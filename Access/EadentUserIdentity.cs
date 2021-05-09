@@ -330,17 +330,6 @@ namespace Eadent.Identity.Access
             return deleteUserStatusId;
         }
 
-        private void PerformHardDeleteUserAudits(UserEntity userEntity)
-        {
-            var parameters = new List<object>();
-
-            var userIdParameter = new SqlParameter("@UserId", SqlDbType.BigInt) { Value = userEntity.UserId };
-            parameters.Add(userIdParameter);
-
-            var sql = $"UPDATE {EadentUserIdentityDatabase.DatabaseSchema}.UserSessions SET UserSessionStatusId = @UserSessionStatusId, LastAccessedDateTimeUtc = @UtcNow WHERE UserId = @UserId;";
-            var rowCount = EadentUserIdentityDatabase.ExecuteSqlRaw(sql, parameters);
-        }
-
         private DeleteUserStatus PerformHardDelete(UserEntity userEntity)
         {
             var deleteUserStatusId = DeleteUserStatus.Error;
