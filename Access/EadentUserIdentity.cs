@@ -358,8 +358,8 @@ namespace Eadent.Identity.Access
                 var sql = $"DELETE FROM {EadentUserIdentityDatabase.DatabaseSchema}.UserAudits WHERE UserId = @UserId;";
                 rowCount = EadentUserIdentityDatabase.ExecuteSqlRaw(sql, parameters);
 
-                //sql = $"DELETE FROM {EadentUserIdentityDatabase.DatabaseSchema}.UserEMails WHERE UserId = @UserId;";
-                //rowCount = EadentUserIdentityDatabase.ExecuteSqlRaw(sql, parameters);
+                sql = $"DELETE FROM {EadentUserIdentityDatabase.DatabaseSchema}.UserEMails WHERE UserId = @UserId;";
+                rowCount = EadentUserIdentityDatabase.ExecuteSqlRaw(sql, parameters);
 
                 sql = $"DELETE FROM {EadentUserIdentityDatabase.DatabaseSchema}.UserPasswordResets WHERE UserId = @UserId;";
                 rowCount = EadentUserIdentityDatabase.ExecuteSqlRaw(sql, parameters);
