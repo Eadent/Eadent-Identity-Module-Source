@@ -74,7 +74,7 @@ namespace Eadent.Identity.Access
 
             var settings = EadentIdentitySettings.UserIdentity.Security.Hasher;
 
-            byte[] salt = Encoding.Unicode.GetBytes($"{settings.SiteSalt}-{saltGuid}-{plainTextPassword}");
+            byte[] salt = Encoding.Unicode.GetBytes($"{settings.SiteSalt}-{saltGuid}");
 
             var derivedKey = KeyDerivation.Pbkdf2(plainTextPassword, salt, KeyDerivationPrf.HMACSHA512, settings.IterationCount, settings.NumDerivedKeyBytes);
 
