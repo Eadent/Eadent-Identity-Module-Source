@@ -338,7 +338,6 @@ namespace Eadent.Identity.Access
             parameters.Add(userIdParameter);
 
             var sql = $"UPDATE {EadentUserIdentityDatabase.DatabaseSchema}.UserSessions SET UserSessionStatusId = @UserSessionStatusId, LastAccessedDateTimeUtc = @UtcNow WHERE UserId = @UserId;";
-
             var rowCount = EadentUserIdentityDatabase.ExecuteSqlRaw(sql, parameters);
         }
 
