@@ -2,7 +2,7 @@
 
 namespace Eadent.Identity.DataAccess.EadentUserIdentity.Databases
 {
-    public interface IEadentUserIdentityDatabase : IBaseDatabase
+    internal interface IEadentUserIdentityDatabase : IBaseDatabase
     {
     }
 }

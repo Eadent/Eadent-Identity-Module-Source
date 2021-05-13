@@ -4,7 +4,7 @@ using Eadent.Identity.DataAccess.EadentUserIdentity.Entities;
 
 namespace Eadent.Identity.DataAccess.EadentUserIdentity.Repositories
 {
-    public class UsersRepository : BaseRepository<IEadentUserIdentityDatabase, UserEntity, long>, IUsersRepository
+    internal class UsersRepository : BaseRepository<IEadentUserIdentityDatabase, UserEntity, long>, IUsersRepository
     {
         public UsersRepository(IEadentUserIdentityDatabase database) : base(database)
         {

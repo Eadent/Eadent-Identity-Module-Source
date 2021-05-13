@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Eadent.Identity.DataAccess.EadentUserIdentity.Repositories
 {
-    public class UserSessionsRepository : BaseRepository<IEadentUserIdentityDatabase, UserSessionEntity, long>, IUserSessionsRepository
+    internal class UserSessionsRepository : BaseRepository<IEadentUserIdentityDatabase, UserSessionEntity, long>, IUserSessionsRepository
     {
         public UserSessionsRepository(IEadentUserIdentityDatabase database) : base(database)
         {

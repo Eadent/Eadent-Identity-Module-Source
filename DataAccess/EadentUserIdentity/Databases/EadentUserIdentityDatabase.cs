@@ -6,7 +6,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace Eadent.Identity.DataAccess.EadentUserIdentity.Databases
 {
-    public class EadentUserIdentityDatabase : BaseDatabase, IEadentUserIdentityDatabase
+    internal class EadentUserIdentityDatabase : BaseDatabase, IEadentUserIdentityDatabase
     {
         // Attributes/Properties.
         private EadentIdentitySettings EadentIdentitySettings { get; }

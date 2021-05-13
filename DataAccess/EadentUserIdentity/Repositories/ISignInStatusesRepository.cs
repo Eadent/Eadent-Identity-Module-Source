@@ -3,7 +3,7 @@ using Eadent.Identity.DataAccess.EadentUserIdentity.Entities;
 
 namespace Eadent.Identity.DataAccess.EadentUserIdentity.Repositories
 {
-    public interface ISignInStatusesRepository : IBaseRepository<SignInStatusEntity, short>
+    internal interface ISignInStatusesRepository : IBaseRepository<SignInStatusEntity, short>
     {
     }
 }

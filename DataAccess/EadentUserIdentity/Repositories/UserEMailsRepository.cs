@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Eadent.Identity.DataAccess.EadentUserIdentity.Repositories
 {
-    public class UserEMailsRepository : BaseRepository<IEadentUserIdentityDatabase, UserEMailEntity, long>, IUserEMailsRepository
+    internal class UserEMailsRepository : BaseRepository<IEadentUserIdentityDatabase, UserEMailEntity, long>, IUserEMailsRepository
     {
         public UserEMailsRepository(IEadentUserIdentityDatabase database) : base(database)
         {

@@ -4,7 +4,7 @@ using Eadent.Identity.DataAccess.EadentUserIdentity.Entities;
 
 namespace Eadent.Identity.DataAccess.EadentUserIdentity.Repositories
 {
-    public class SignInStatusesRepository : BaseRepository<IEadentUserIdentityDatabase, SignInStatusEntity, short>, ISignInStatusesRepository
+    internal class SignInStatusesRepository : BaseRepository<IEadentUserIdentityDatabase, SignInStatusEntity, short>, ISignInStatusesRepository
     {
         public SignInStatusesRepository(IEadentUserIdentityDatabase database) : base(database)
         {

@@ -3,7 +3,7 @@ using Eadent.Identity.DataAccess.EadentUserIdentity.Entities;
 
 namespace Eadent.Identity.DataAccess.EadentUserIdentity.Repositories
 {
-    public interface IRolesRepository : IBaseRepository<RoleEntity, short>
+    internal interface IRolesRepository : IBaseRepository<RoleEntity, short>
     {
     }
 }

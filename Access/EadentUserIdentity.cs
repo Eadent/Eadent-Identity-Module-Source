@@ -20,7 +20,7 @@ using UserStatus = Eadent.Identity.Definitions.UserStatus;
 
 namespace Eadent.Identity.Access
 {
-    public class EadentUserIdentity : IEadentUserIdentity
+    internal class EadentUserIdentity : IEadentUserIdentity
     {
         private ILogger<EadentUserIdentity> Logger { get; }
 
