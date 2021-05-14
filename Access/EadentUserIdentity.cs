@@ -101,7 +101,7 @@ namespace Eadent.Identity.Access
                 ChangePasswordNextSignIn = false,
                 SignInErrorCount = 0,
                 SignInErrorLimit = EadentIdentitySettings.UserIdentity.Account.SignInErrorLimit,
-                SignInLockOutDurationMinutes = EadentIdentitySettings.UserIdentity.Account.SignInLockOutDurationMinutes,
+                SignInLockOutDurationSeconds = EadentIdentitySettings.UserIdentity.Account.SignInLockOutDurationSeconds,
                 SignInLockOutDateTimeUtc = null,
                 CreatedDateTimeUtc = utcNow
             };
@@ -166,7 +166,7 @@ namespace Eadent.Identity.Access
                 UserSessionToken = userSessionToken,
                 UserSessionGuid = Guid.NewGuid(),
                 UserSessionStatusId = userSessionStatusId,
-                UserSessionExpirationMinutes = EadentIdentitySettings.UserIdentity.Account.SessionExpirationMinutes,
+                UserSessionExpirationDurationSeconds = EadentIdentitySettings.UserIdentity.Account.SessionExpirationDurationSeconds,
                 EMailAddress = eMailAddress,
                 IpAddress = ipAddress,
                 SignInStatusId = signInStatusId,
@@ -237,7 +237,7 @@ namespace Eadent.Identity.Access
 
             // Just In Case of a Software or Database Administration Error, treat a null SignInLockOutDateTimeUtc as Lock Out Expired.
             if ((userEntity.SignInLockOutDateTimeUtc == null) ||
-                (userEntity.SignInLockOutDateTimeUtc.Value.AddMinutes(userEntity.SignInLockOutDurationMinutes) <= utcNow))
+                (userEntity.SignInLockOutDateTimeUtc.Value.AddSeconds(userEntity.SignInLockOutDurationSeconds) <= utcNow))
             {
                 userEntity.SignInErrorCount = 0;
                 userEntity.SignInLockOutDateTimeUtc = null;
@@ -260,7 +260,7 @@ namespace Eadent.Identity.Access
                 ResetToken = resetToken,
                 PasswordResetStatusId = PasswordResetStatus.Open,
                 RequestedDateTimeUtc = utcNow,
-                ExpirationDurationMinutes = EadentIdentitySettings.UserIdentity.Account.PasswordResetExpirationDurationMinutes,
+                ExpirationDurationSeconds = EadentIdentitySettings.UserIdentity.Account.PasswordResetExpirationDurationSeconds,
                 EMailAddress = eMailAddress,
                 IpAddress  = ipAddress,
                 UserId = userEntity?.UserId
@@ -537,7 +537,7 @@ namespace Eadent.Identity.Access
 
                         case UserSessionStatus.SignedIn:
 
-                            if (userSessionEntity.LastAccessedDateTimeUtc.AddMinutes(userSessionEntity.UserSessionExpirationMinutes) <= utcNow)
+                            if (userSessionEntity.LastAccessedDateTimeUtc.AddSeconds(userSessionEntity.UserSessionExpirationDurationSeconds) <= utcNow)
                             {
                                 userSessionEntity.UserSessionStatusId = UserSessionStatus.TimedOutExpired;
 
@@ -1172,7 +1172,7 @@ namespace Eadent.Identity.Access
                     {
                         case PasswordResetStatus.Open:
 
-                            if (userPasswordResetEntity.RequestedDateTimeUtc.AddMinutes(userPasswordResetEntity.ExpirationDurationMinutes) <= utcNow)
+                            if (userPasswordResetEntity.RequestedDateTimeUtc.AddSeconds(userPasswordResetEntity.ExpirationDurationSeconds) <= utcNow)
                             {
                                 userPasswordResetEntity.PasswordResetStatusId = PasswordResetStatus.TimedOutExpired;
                                 UserPasswordResetsRepository.Update(userPasswordResetEntity);
@@ -1238,7 +1238,7 @@ namespace Eadent.Identity.Access
                     {
                         case PasswordResetStatus.Open:
 
-                            if (userPasswordResetEntity.RequestedDateTimeUtc.AddMinutes(userPasswordResetEntity.ExpirationDurationMinutes) <= utcNow)
+                            if (userPasswordResetEntity.RequestedDateTimeUtc.AddSeconds(userPasswordResetEntity.ExpirationDurationSeconds) <= utcNow)
                             {
                                 userPasswordResetEntity.PasswordResetStatusId = PasswordResetStatus.TimedOutExpired;
                                 UserPasswordResetsRepository.Update(userPasswordResetEntity);

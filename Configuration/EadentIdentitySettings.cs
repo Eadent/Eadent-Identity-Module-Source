@@ -37,11 +37,11 @@
         {
             public int SignInErrorLimit { get; set; }
 
-            public int SignInLockOutDurationMinutes { get; set; }
+            public int SignInLockOutDurationSeconds { get; set; }
 
-            public short SessionExpirationMinutes { get; set; }
+            public int SessionExpirationDurationSeconds { get; set; }
 
-            public int PasswordResetExpirationDurationMinutes { get; set; }
+            public int PasswordResetExpirationDurationSeconds { get; set; }
         }
 
         public class UserIdentitySettings

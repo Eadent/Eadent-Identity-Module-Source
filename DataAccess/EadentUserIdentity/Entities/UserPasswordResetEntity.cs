@@ -17,7 +17,7 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Entities
 
         public DateTime RequestedDateTimeUtc { get; set; }
 
-        public int ExpirationDurationMinutes { get; set; }
+        public int ExpirationDurationSeconds { get; set; }
 
         public string EMailAddress { get; set; }
 

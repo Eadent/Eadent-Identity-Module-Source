@@ -38,7 +38,7 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Entities
 
         public int SignInErrorLimit { get; set; }
 
-        public int SignInLockOutDurationMinutes { get; set; }
+        public int SignInLockOutDurationSeconds { get; set; }
 
         public DateTime? SignInLockOutDateTimeUtc { get; set; }
 
