@@ -16,8 +16,6 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Entities
 
         public DateTime CreatedDateTimeUtc { get; set; }
 
-        public DateTime? VerifiedDateTimeUtc { get; set; }
-
         public virtual UserEntity User { get; set; }
     }
 }

@@ -118,8 +118,7 @@ namespace Eadent.Identity.Access
             {
                 UserId = userEntity.UserId,
                 EMailAddress = eMailAddress,
-                CreatedDateTimeUtc = utcNow,
-                VerifiedDateTimeUtc = null
+                CreatedDateTimeUtc = utcNow
             };
 
             UserEMailsRepository.Create(userEMailEntity);
@@ -657,7 +656,6 @@ namespace Eadent.Identity.Access
                                     }
                                     else
                                     {
-                                        userEMailEntity.VerifiedDateTimeUtc = null;
                                         userEMailEntity.EMailAddress = newEMailAddress;
 
                                         UserEMailsRepository.Update(userEMailEntity);
