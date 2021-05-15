@@ -2,8 +2,8 @@
 {
     public enum SessionStatus : short
     {
-        Inactive = 0,
-        Error = 1,
+        Error = 0,
+        Inactive = 1,
         InvalidSessionToken = 2,
         SignedIn = 3,
         SignedOut = 4,

@@ -2,13 +2,13 @@
 {
     public enum SignInStatus : short
     {
-        Success = 0,
-        SuccessMustChangePassword = 1,
-        Error = 2,
-        Disabled = 3,
-        LockedOut = 4,
+        Error = 0,
+        Success = 1,
+        SuccessMustChangePassword = 2,
+        UserDisabled = 3,
+        UserLockedOut = 4,
         InvalidEMailAddress = 5,
         InvalidPassword = 6,
-        SoftDeleted = 100
+        UserSoftDeleted = 100
     }
 }

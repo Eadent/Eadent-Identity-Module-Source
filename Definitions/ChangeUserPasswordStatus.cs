@@ -2,15 +2,15 @@
 {
     public enum ChangeUserPasswordStatus : short
     {
-        Inactive = 0,
-        SuccessSignedOut = 1,
-        Error = 2,
-        InvalidSessionToken = 3,
-        InvalidOldPassword = 4,
-        InvalidNewPassword = 5,
-        SignedOut = 6,
-        TimedOutExpired = 7,
-        Disabled = 8,
-        SoftDeleted = 100
+        Error = 0,
+        InvalidSessionToken = 1,
+        SessionInactive = 2,
+        SessionSignedOut = 3,
+        SessionTimedOutExpired = 4,
+        SessionDisabled = 5,
+        SuccessSignedOut = 10,
+        InvalidOldPassword = 11,
+        InvalidNewPassword = 12,
+        SessionSoftDeleted = 100
     }
 }

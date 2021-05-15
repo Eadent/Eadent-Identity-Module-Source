@@ -2,12 +2,12 @@
 {
     public enum SignOutStatus : short
     {
-        Success = 0,
-        Error = 1,
+        Error = 0,
+        Success = 1,
         InactiveSession = 2,
         InvalidSessionToken = 3,
-        AlreadySignedOut = 4,
-        Disabled = 5,
-        SoftDeleted = 100
+        SessionAlreadySignedOut = 4,
+        SessionDisabled = 5,
+        SessionSoftDeleted = 100
     }
 }

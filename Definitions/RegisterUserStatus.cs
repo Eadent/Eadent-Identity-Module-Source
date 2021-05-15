@@ -2,8 +2,8 @@
 {
     public enum RegisterUserStatus
     {
-        Success = 0,
-        Error = 1,
-        AlreadyExists = 2
+        Error = 0,
+        Success = 1,
+        UserAlreadyExists = 2
     }
 }

@@ -208,7 +208,7 @@ namespace Eadent.Identity.Access
 
                     if (userEntity.SignInErrorCount > userEntity.SignInErrorLimit)
                     {
-                        signInStatusId = SignInStatus.LockedOut;
+                        signInStatusId = SignInStatus.UserLockedOut;
 
                         userEntity.SignInLockOutDateTimeUtc = utcNow;
                         userEntity.UserStatusId = UserStatus.SignInLockedOut;
@@ -246,7 +246,7 @@ namespace Eadent.Identity.Access
             }
             else
             {
-                signInStatusId = SignInStatus.LockedOut;
+                signInStatusId = SignInStatus.UserLockedOut;
             }
 
             return (userSessionStatusId, signInStatusId);
@@ -391,7 +391,7 @@ namespace Eadent.Identity.Access
 
                 if (userEMailEntity != null)
                 {
-                    registerStatusId = RegisterUserStatus.AlreadyExists;
+                    registerStatusId = RegisterUserStatus.UserAlreadyExists;
                     userEntity = userEMailEntity.User;
                 }
                 else
@@ -479,7 +479,7 @@ namespace Eadent.Identity.Access
 
                         case UserStatus.Disabled:
 
-                            signInStatusId = SignInStatus.Disabled;
+                            signInStatusId = SignInStatus.UserDisabled;
                             break;
 
                         case UserStatus.SignInLockedOut:
@@ -489,7 +489,7 @@ namespace Eadent.Identity.Access
 
                         case UserStatus.SoftDeleted:
 
-                            signInStatusId = SignInStatus.SoftDeleted;
+                            signInStatusId = SignInStatus.UserSoftDeleted;
                             break;
                     }
                 }
@@ -609,7 +609,7 @@ namespace Eadent.Identity.Access
                     {
                         case UserSessionStatus.Inactive:
 
-                            changeUserEMailStatusId = ChangeUserEMailStatus.Inactive;
+                            changeUserEMailStatusId = ChangeUserEMailStatus.SessionInactive;
                             break;
 
                         case UserSessionStatus.SignedIn:
@@ -673,22 +673,22 @@ namespace Eadent.Identity.Access
 
                         case UserSessionStatus.SignedOut:
 
-                            changeUserEMailStatusId = ChangeUserEMailStatus.SignedOut;
+                            changeUserEMailStatusId = ChangeUserEMailStatus.SessionSignedOut;
                             break;
 
                         case UserSessionStatus.TimedOutExpired:
 
-                            changeUserEMailStatusId = ChangeUserEMailStatus.TimedOutExpired;
+                            changeUserEMailStatusId = ChangeUserEMailStatus.SessionTimedOutExpired;
                             break;
 
                         case UserSessionStatus.Disabled:
 
-                            changeUserEMailStatusId = ChangeUserEMailStatus.Disabled;
+                            changeUserEMailStatusId = ChangeUserEMailStatus.SessionDisabled;
                             break;
 
                         case UserSessionStatus.SoftDeleted:
 
-                            changeUserEMailStatusId = ChangeUserEMailStatus.SoftDeleted;
+                            changeUserEMailStatusId = ChangeUserEMailStatus.SessionSoftDeleted;
                             break;
                     }
                 }
@@ -731,7 +731,7 @@ namespace Eadent.Identity.Access
                     {
                         case UserSessionStatus.Inactive:
 
-                            changeUserPasswordStatusId = ChangeUserPasswordStatus.Inactive;
+                            changeUserPasswordStatusId = ChangeUserPasswordStatus.SessionInactive;
                             break;
 
                         case UserSessionStatus.SignedIn:
@@ -779,22 +779,22 @@ namespace Eadent.Identity.Access
 
                         case UserSessionStatus.SignedOut:
 
-                            changeUserPasswordStatusId = ChangeUserPasswordStatus.SignedOut;
+                            changeUserPasswordStatusId = ChangeUserPasswordStatus.SessionSignedOut;
                             break;
 
                         case UserSessionStatus.TimedOutExpired:
 
-                            changeUserPasswordStatusId = ChangeUserPasswordStatus.TimedOutExpired;
+                            changeUserPasswordStatusId = ChangeUserPasswordStatus.SessionTimedOutExpired;
                             break;
 
                         case UserSessionStatus.Disabled:
 
-                            changeUserPasswordStatusId = ChangeUserPasswordStatus.Disabled;
+                            changeUserPasswordStatusId = ChangeUserPasswordStatus.SessionDisabled;
                             break;
 
                         case UserSessionStatus.SoftDeleted:
 
-                            changeUserPasswordStatusId = ChangeUserPasswordStatus.SoftDeleted;
+                            changeUserPasswordStatusId = ChangeUserPasswordStatus.SessionSoftDeleted;
                             break;
                     }
                 }
@@ -847,17 +847,17 @@ namespace Eadent.Identity.Access
 
                         case UserSessionStatus.SignedOut:
 
-                            signOutStatusId = SignOutStatus.AlreadySignedOut;
+                            signOutStatusId = SignOutStatus.SessionAlreadySignedOut;
                             break;
 
                         case UserSessionStatus.Disabled:
 
-                            signOutStatusId = SignOutStatus.Disabled;
+                            signOutStatusId = SignOutStatus.SessionDisabled;
                             break;
 
                         case UserSessionStatus.SoftDeleted:
 
-                            signOutStatusId = SignOutStatus.SoftDeleted;
+                            signOutStatusId = SignOutStatus.SessionSoftDeleted;
                             break;
                     }
                 }
@@ -899,7 +899,33 @@ namespace Eadent.Identity.Access
     
                     if (userSessionEntity.UserSessionStatusId != UserSessionStatus.SignedIn)
                     {
-                        deleteUserStatusId = DeleteUserStatus.InvalidSessionToken;
+                        switch (userSessionEntity.UserSessionStatusId)
+                        {
+                            case UserSessionStatus.Inactive:
+
+                                deleteUserStatusId = DeleteUserStatus.SessionInactive;
+                                break;
+
+                            case UserSessionStatus.SignedOut:
+
+                                deleteUserStatusId = DeleteUserStatus.SessionSignedOut;
+                                break;
+
+                            case UserSessionStatus.TimedOutExpired:
+
+                                deleteUserStatusId = DeleteUserStatus.SessionTimedOutExpired;
+                                break;
+
+                            case UserSessionStatus.Disabled:
+
+                                deleteUserStatusId = DeleteUserStatus.SessionDisabled;
+                                break;
+
+                            case UserSessionStatus.SoftDeleted:
+
+                                deleteUserStatusId = DeleteUserStatus.SessionSoftDeleted;
+                                break;
+                        }
                     }
                     else if (userSessionEntity.User.UserGuid == userGuid)
                     {
@@ -973,7 +999,33 @@ namespace Eadent.Identity.Access
 
                     if (userSessionEntity.UserSessionStatusId != UserSessionStatus.SignedIn)
                     {
-                        deleteUserStatusId = DeleteUserStatus.InvalidSessionToken;
+                        switch (userSessionEntity.UserSessionStatusId)
+                        {
+                            case UserSessionStatus.Inactive:
+
+                                deleteUserStatusId = DeleteUserStatus.SessionInactive;
+                                break;
+
+                            case UserSessionStatus.SignedOut:
+
+                                deleteUserStatusId = DeleteUserStatus.SessionSignedOut;
+                                break;
+
+                            case UserSessionStatus.TimedOutExpired:
+
+                                deleteUserStatusId = DeleteUserStatus.SessionTimedOutExpired;
+                                break;
+
+                            case UserSessionStatus.Disabled:
+
+                                deleteUserStatusId = DeleteUserStatus.SessionDisabled;
+                                break;
+
+                            case UserSessionStatus.SoftDeleted:
+
+                                deleteUserStatusId = DeleteUserStatus.SessionSoftDeleted;
+                                break;
+                        }
                     }
                     else if (userSessionEntity.User.UserGuid == userGuid)
                     {
@@ -1044,7 +1096,33 @@ namespace Eadent.Identity.Access
 
                     if (userSessionEntity.UserSessionStatusId != UserSessionStatus.SignedIn)
                     {
-                        deleteUserStatusId = DeleteUserStatus.InvalidSessionToken;
+                        switch (userSessionEntity.UserSessionStatusId)
+                        {
+                            case UserSessionStatus.Inactive:
+
+                                deleteUserStatusId = DeleteUserStatus.SessionInactive;
+                                break;
+
+                            case UserSessionStatus.SignedOut:
+
+                                deleteUserStatusId = DeleteUserStatus.SessionSignedOut;
+                                break;
+
+                            case UserSessionStatus.TimedOutExpired:
+
+                                deleteUserStatusId = DeleteUserStatus.SessionTimedOutExpired;
+                                break;
+
+                            case UserSessionStatus.Disabled:
+
+                                deleteUserStatusId = DeleteUserStatus.SessionDisabled;
+                                break;
+
+                            case UserSessionStatus.SoftDeleted:
+
+                                deleteUserStatusId = DeleteUserStatus.SessionSoftDeleted;
+                                break;
+                        }
                     }
                     else if (userSessionEntity.User.UserGuid == userGuid)
                     {
@@ -1126,12 +1204,12 @@ namespace Eadent.Identity.Access
 
                         case UserStatus.Disabled:
 
-                            passwordResetRequestStatusId = UserPasswordResetRequestStatus.Disabled;
+                            passwordResetRequestStatusId = UserPasswordResetRequestStatus.UserDisabled;
                             break;
 
                         case UserStatus.SoftDeleted:
 
-                            passwordResetRequestStatusId = UserPasswordResetRequestStatus.SoftDeleted;
+                            passwordResetRequestStatusId = UserPasswordResetRequestStatus.UserSoftDeleted;
                             break;
                     }
                 }
