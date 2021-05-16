@@ -22,5 +22,14 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Repositories
 
             return userSessionEntity;
         }
+
+        public UserSessionEntity GetLastOrDefault(long userId)
+        {
+            var userSessionEntity = Database.Context.Set<UserSessionEntity>()
+                .OrderByDescending(entity => entity.UserSessionId)
+                .FirstOrDefault(entity => entity.UserId == userId);
+
+            return userSessionEntity;
+        }
     }
 }

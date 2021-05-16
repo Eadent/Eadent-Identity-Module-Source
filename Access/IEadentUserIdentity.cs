@@ -8,7 +8,7 @@ namespace Eadent.Identity.Access
     {
         (RegisterUserStatus registerStatusId, UserEntity userEntity) RegisterUser(Role roleId, string eMailAddress, string displayName, string plainTextPassword, string ipAddress, decimal googleReCaptchaScore);
 
-        (SignInStatus signInStatusId, UserSessionEntity userSessionEntity) SignInUser(string eMailAddress, string plainTextPassword, string ipAddress, decimal googleReCaptchaScore);
+        (SignInStatus signInStatusId, UserSessionEntity userSessionEntity, DateTime? previousUserSignInDateTimeUtc) SignInUser(string eMailAddress, string plainTextPassword, string ipAddress, decimal? googleReCaptchaScore);
 
         (SessionStatus sessionStatusId, UserSessionEntity userSessionEntity) CheckAndUpdateUserSession(string userSessionToken, string ipAddress);
 

@@ -6,5 +6,7 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Repositories
     internal interface IUserSessionsRepository : IBaseRepository<UserSessionEntity, long>
     {
         UserSessionEntity GetFirstOrDefaultIncludeUserAndRoles(string userSessionToken);
+
+        UserSessionEntity GetLastOrDefault(long userId);
     }
 }

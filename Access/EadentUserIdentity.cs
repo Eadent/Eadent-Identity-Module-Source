@@ -179,11 +179,13 @@ namespace Eadent.Identity.Access
             return userSessionEntity;
         }
 
-        private (UserSessionStatus userSessionStatusId, SignInStatus signInStatusId) SignInEnabledUser(UserEntity userEntity, string hashedPassword, DateTime utcNow)
+        private (UserSessionStatus userSessionStatusId, SignInStatus signInStatusId, DateTime? previousUserSignInDateTimeUtc) SignInEnabledUser(UserEntity userEntity, string hashedPassword, DateTime utcNow)
         {
             var userSessionStatusId = UserSessionStatus.Inactive;
 
             var signInStatusId = SignInStatus.Error;
+
+            DateTime? previousUserSignInDateTimeUtc = null;
 
             try
             {
@@ -191,7 +193,7 @@ namespace Eadent.Identity.Access
                 {
                     if (userEntity.ChangePasswordNextSignIn)
                     {
-                        signInStatusId = SignInStatus.SuccessMustChangePassword;
+                        signInStatusId = SignInStatus.SuccessUserMustChangePassword;
                     }
                     else
                     {
@@ -201,6 +203,8 @@ namespace Eadent.Identity.Access
                     userEntity.SignInErrorCount = 0;
 
                     userSessionStatusId = UserSessionStatus.SignedIn;
+
+                    previousUserSignInDateTimeUtc = UserSessionsRepository.GetLastOrDefault(userEntity.UserId)?.CreatedDateTimeUtc;
                 }
                 else
                 {
@@ -226,14 +230,16 @@ namespace Eadent.Identity.Access
                 Logger.LogError(exception, "An Exception has occurred.");
             }
 
-            return (userSessionStatusId, signInStatusId);
+            return (userSessionStatusId, signInStatusId, previousUserSignInDateTimeUtc);
         }
 
-        private (UserSessionStatus userSessionStatusId, SignInStatus signInStatusId) SignInLockedOutUser(UserEntity userEntity, string hashedPassword, DateTime utcNow)
+        private (UserSessionStatus userSessionStatusId, SignInStatus signInStatusId, DateTime? previousUserSignInDateTimeUtc) SignInLockedOutUser(UserEntity userEntity, string hashedPassword, DateTime utcNow)
         {
             var userSessionStatusId = UserSessionStatus.Inactive;
 
             var signInStatusId = SignInStatus.Error;
+
+            DateTime? previousUserSignInDateTimeUtc = null;
 
             // Just In Case of a Software or Database Administration Error, treat a null SignInLockOutDateTimeUtc as Lock Out Expired.
             if ((userEntity.SignInLockOutDateTimeUtc == null) ||
@@ -243,14 +249,14 @@ namespace Eadent.Identity.Access
                 userEntity.SignInLockOutDateTimeUtc = null;
                 userEntity.UserStatusId = UserStatus.Enabled;
 
-                (userSessionStatusId, signInStatusId) = SignInEnabledUser(userEntity, hashedPassword, utcNow);
+                (userSessionStatusId, signInStatusId, previousUserSignInDateTimeUtc) = SignInEnabledUser(userEntity, hashedPassword, utcNow);
             }
             else
             {
                 signInStatusId = SignInStatus.UserLockedOut;
             }
 
-            return (userSessionStatusId, signInStatusId);
+            return (userSessionStatusId, signInStatusId, previousUserSignInDateTimeUtc);
         }
 
         private UserPasswordResetEntity CreatePasswordReset(string resetToken, string eMailAddress, string ipAddress, UserEntity userEntity, DateTime utcNow)
@@ -404,6 +410,8 @@ namespace Eadent.Identity.Access
                     registerStatusId = RegisterUserStatus.Success;
                 }
 
+                Logger.LogInformation($"RegisterStatusId: {registerStatusId} : EMailAddress: {eMailAddress} : IpAddress: {ipAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
+
                 CreateUserAudit(userEntity.UserId, $"User Register. RegisterStatusId: {registerStatusId}", null, $"E-Mail Address: {eMailAddress}", ipAddress, googleReCaptchaScore, utcNow);
 
                 EadentUserIdentityDatabase.SaveChanges();
@@ -421,7 +429,7 @@ namespace Eadent.Identity.Access
             return (registerStatusId, userEntity);
         }
 
-        public (SignInStatus signInStatusId, UserSessionEntity userSessionEntity) SignInUser(string eMailAddress, string plainTextPassword, string ipAddress, decimal googleReCaptchaScore)
+        public (SignInStatus signInStatusId, UserSessionEntity userSessionEntity, DateTime? previousUserSignInDateTimeUtc) SignInUser(string eMailAddress, string plainTextPassword, string ipAddress, decimal? googleReCaptchaScore)
         {
             var signInStatusId = SignInStatus.Error;
 
@@ -430,6 +438,8 @@ namespace Eadent.Identity.Access
             var utcNow = DateTime.UtcNow;
 
             UserSessionEntity userSessionEntity = null;
+
+            DateTime? previousUserSignInDateTimeUtc = null;
 
             try
             {
@@ -477,7 +487,7 @@ namespace Eadent.Identity.Access
                     {
                         case UserStatus.Enabled:
 
-                            (userSessionStatusId, signInStatusId) = SignInEnabledUser(userEntity, hashedPassword, utcNow);
+                            (userSessionStatusId, signInStatusId, previousUserSignInDateTimeUtc) = SignInEnabledUser(userEntity, hashedPassword, utcNow);
                             break;
 
                         case UserStatus.Disabled:
@@ -487,7 +497,7 @@ namespace Eadent.Identity.Access
 
                         case UserStatus.SignInLockedOut:
 
-                            (userSessionStatusId, signInStatusId) = SignInLockedOutUser(userEntity, hashedPassword, utcNow);
+                            (userSessionStatusId, signInStatusId, previousUserSignInDateTimeUtc) = SignInLockedOutUser(userEntity, hashedPassword, utcNow);
                             break;
 
                         case UserStatus.SoftDeleted:
@@ -498,6 +508,8 @@ namespace Eadent.Identity.Access
                 }
 
                 userSessionEntity = CreateUserSession(userEntity, userSessionToken, userSessionStatusId, eMailAddress, ipAddress, signInStatusId, utcNow);
+
+                Logger.LogInformation($"SignInStatusId: {signInStatusId} : EMailAddress: {eMailAddress} : IpAddress: {ipAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
 
                 CreateUserAudit(userEntity?.UserId, $"User Sign In. SignInStatusId: {signInStatusId}", null, $"E-Mail Address: {eMailAddress}", ipAddress, googleReCaptchaScore, utcNow);
 
@@ -511,7 +523,7 @@ namespace Eadent.Identity.Access
                 EadentUserIdentityDatabase.RollbackTransaction();
             }
 
-            return (signInStatusId, userSessionEntity);
+            return (signInStatusId, userSessionEntity, previousUserSignInDateTimeUtc);
         }
 
         public (SessionStatus sessionStatusId, UserSessionEntity userSessionEntity) CheckAndUpdateUserSession(string userSessionToken, string ipAddress)
@@ -700,6 +712,8 @@ namespace Eadent.Identity.Access
                     }
                 }
 
+                Logger.LogInformation($"ChangeUserEMailStatusId: {changeUserEMailStatusId} : OldEMailAddress: {oldEMailAddress} : NewEMailAddress: {newEMailAddress} : IpAddress: {ipAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
+
                 CreateUserAudit(userEntity?.UserId, $"User Change E-Mail Address. ChangeUserEMailStatusId: {changeUserEMailStatusId}", $"Old E-Mail Address: {oldEMailAddress}", $"New E-Mail Address: {newEMailAddress}", ipAddress, googleReCaptchaScore, utcNow);
 
                 EadentUserIdentityDatabase.SaveChanges();
@@ -808,6 +822,8 @@ namespace Eadent.Identity.Access
                     }
                 }
 
+                Logger.LogInformation($"ChangeUserPasswordStatusId: {changeUserPasswordStatusId} : IpAddress: {ipAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
+
                 CreateUserAudit(userEntity?.UserId, $"User Change Password. ChangeUserPasswordStatusId: {changeUserPasswordStatusId}", null, null, ipAddress, googleReCaptchaScore, utcNow);
 
                 EadentUserIdentityDatabase.SaveChanges();
@@ -872,6 +888,8 @@ namespace Eadent.Identity.Access
                             break;
                     }
                 }
+
+                Logger.LogInformation($"SignOutStatusId: {signOutStatusId} : IpAddress: {ipAddress}");
 
                 CreateUserAudit(userSessionEntity?.UserId, $"User Sign Out. SignOutStatusId: {signOutStatusId}", null, null, ipAddress, null, utcNow);
 
@@ -970,6 +988,8 @@ namespace Eadent.Identity.Access
                     }
                 }
 
+                Logger.LogInformation($"DeleteUserStatusId: {deleteUserStatusId} : InitiatingUserId: {initiatingUserId} - TargetUserId: {targetUserId} : IpAddress: {ipAddress}");
+
                 CreateUserAudit(initiatingUserId, $"User Soft Delete. DeleteUserStatusId: {deleteUserStatusId}", null, $"Initiating User Id: {initiatingUserId} - Target User Id: {targetUserId}", ipAddress, null, utcNow);
 
                 EadentUserIdentityDatabase.SaveChanges();
@@ -1066,6 +1086,8 @@ namespace Eadent.Identity.Access
                         }
                     }
                 }
+
+                Logger.LogInformation($"DeleteUserStatusId: {deleteUserStatusId} : InitiatingUserId: {initiatingUserId} - TargetUserId: {targetUserId} : IpAddress: {ipAddress}");
 
                 CreateUserAudit(initiatingUserId, $"User Soft Un-Delete. DeleteUserStatusId: {deleteUserStatusId}", null, $"Initiating User Id: {initiatingUserId} - Target User Id: {targetUserId}", ipAddress, null, utcNow);
 
@@ -1164,6 +1186,8 @@ namespace Eadent.Identity.Access
                     }
                 }
 
+                Logger.LogInformation($"DeleteUserStatusId: {deleteUserStatusId} : InitiatingUserId: {initiatingUserId} - TargetUserId: {targetUserId} : IpAddress: {ipAddress}");
+
                 CreateUserAudit(initiatingUserId, $"User Hard Delete. DeleteUserStatusId: {deleteUserStatusId}", null, $"Initiating User Id: {initiatingUserId} - Target User Id: {targetUserId}", ipAddress, null, utcNow);
 
                 EadentUserIdentityDatabase.SaveChanges();
@@ -1226,6 +1250,8 @@ namespace Eadent.Identity.Access
                             break;
                     }
                 }
+
+                Logger.LogInformation($"PasswordResetRequestStatusId: {passwordResetRequestStatusId} : EMailAddress: {eMailAddress} : IpAddress: {ipAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
 
                 CreateUserAudit(userEntity?.UserId, $"Password Reset Begin Request. PasswordResetRequestStatusId: {passwordResetRequestStatusId}", null, $"E-Mail Address: {eMailAddress}", ipAddress, googleReCaptchaScore, utcNow);
 
@@ -1292,6 +1318,8 @@ namespace Eadent.Identity.Access
                             break;
                     }
                 }
+
+                Logger.LogInformation($"PasswordResetRequestStatusId: {passwordResetRequestStatusId} : IpAddress: {ipAddress}");
 
                 CreateUserAudit(userPasswordResetEntity?.UserId, $"Password Reset Check And Update Request. PasswordResetRequestStatusId: {passwordResetRequestStatusId}", null, null, ipAddress, null, utcNow);
 
@@ -1382,6 +1410,8 @@ namespace Eadent.Identity.Access
                     }
                 }
 
+                Logger.LogInformation($"PasswordResetRequestStatusId: {passwordResetRequestStatusId} : IpAddress: {ipAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
+
                 CreateUserAudit(userPasswordResetEntity?.UserId, $"Password Reset Commit Request. PasswordResetRequestStatusId: {passwordResetRequestStatusId}", null, null, ipAddress, googleReCaptchaScore, utcNow);
 
                 EadentUserIdentityDatabase.SaveChanges();
@@ -1440,6 +1470,8 @@ namespace Eadent.Identity.Access
                             break;
                     }
                 }
+
+                Logger.LogInformation($"PasswordResetRequestStatusId: {passwordResetRequestStatusId} : IpAddress: {ipAddress}");
 
                 CreateUserAudit(userPasswordResetEntity?.UserId, $"Password Reset Abort Request. PasswordResetRequestStatusId: {passwordResetRequestStatusId}", null, null, ipAddress, null, utcNow);
 

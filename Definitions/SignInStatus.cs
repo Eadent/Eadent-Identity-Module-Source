@@ -4,7 +4,7 @@
     {
         Error = 0,
         Success = 1,
-        SuccessMustChangePassword = 2,
+        SuccessUserMustChangePassword = 2,
         UserDisabled = 3,
         UserLockedOut = 4,
         InvalidEMailAddress = 5,
