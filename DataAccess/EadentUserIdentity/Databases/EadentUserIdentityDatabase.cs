@@ -1,4 +1,4 @@
-﻿using Eadent.DataAccess.EntityFramework.Databases;
+﻿using Eadent.Common.DataAccess.EntityFramework.Databases;
 using Eadent.Identity.Configuration;
 using Eadent.Identity.DataAccess.EadentUserIdentity.Entities;
 using Microsoft.EntityFrameworkCore;
