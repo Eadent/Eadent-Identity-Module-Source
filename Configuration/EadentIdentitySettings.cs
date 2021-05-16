@@ -42,6 +42,8 @@
             public int SessionExpirationDurationSeconds { get; set; }
 
             public int PasswordResetExpirationDurationSeconds { get; set; }
+
+            public string SignInUrl { get; set; }
         }
 
         public class UserIdentitySettings
