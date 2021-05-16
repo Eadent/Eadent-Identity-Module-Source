@@ -1,11 +1,10 @@
-﻿using System;
-using Eadent.Common.WebApi.DataTransferObjects.Sessions.Users;
+﻿using Eadent.Common.WebApi.DataTransferObjects.Sessions.Users;
 using Eadent.Common.WebApi.Definitions;
-using Eadent.Common.WebApi.Helpers;
 using Eadent.Identity.DataAccess.EadentUserIdentity.Entities;
 using Eadent.Identity.DataAccess.EadentUserIdentity.Repositories;
 using Eadent.Identity.Definitions;
 using Microsoft.Extensions.Logging;
+using System;
 
 namespace Eadent.Identity.Access
 {
@@ -34,8 +33,7 @@ namespace Eadent.Identity.Access
             {
                 case SignInStatus.Success:
 
-                    responseDto.DeveloperCode = DeveloperCode.Success;
-                    responseDto.DeveloperMessage = "Success.";
+                    responseDto.SetSuccess();
                     responseDto.SessionToken = userSessionEntity.UserSessionGuid.ToString();
                     responseDto.PreviousSignInDateTimeUtc = previousUserSignInDateTimeUtc;
                     break;
@@ -43,15 +41,13 @@ namespace Eadent.Identity.Access
                 // If a User tries to Sign In and Must Change their Password, force them to use a Web Site/Page to Change it otherwise they may never do so.
                 case SignInStatus.SuccessUserMustChangePassword:
 
-                    responseDto.DeveloperCode = DeveloperCode.SuccessUserMustChangePasssword;
-                    responseDto.DeveloperMessage = "Success - User Must Change Password.";
+                    responseDto.Set(DeveloperCode.SuccessUserMustChangePassword, "Success - User Must Change Password.");
                     responseDto.PreviousSignInDateTimeUtc = previousUserSignInDateTimeUtc;
                     break;
 
                 case SignInStatus.UserLockedOut:
 
-                    responseDto.DeveloperCode = DeveloperCode.UserLockedOut;
-                    responseDto.DeveloperMessage = "User Locked Out.";
+                    responseDto.Set(DeveloperCode.UserLockedOut,"User Is Locked Out.");
                     responseDto.SignInLockOutDateTimeUtc = userSessionEntity.User.SignInLockOutDateTimeUtc;
                     responseDto.SignInLockOutDurationSeconds = userSessionEntity.User.SignInLockOutDurationSeconds;
                     break;
@@ -64,8 +60,7 @@ namespace Eadent.Identity.Access
                 case SignInStatus.UserSoftDeleted:
                 default:
 
-                    responseDto.DeveloperCode = DeveloperCode.Error;
-                    responseDto.DeveloperMessage = "Error.";
+                    responseDto.SetError();
                     break;
             }
 
@@ -89,8 +84,7 @@ namespace Eadent.Identity.Access
                 {
                     Logger.LogError($"Invalid UserWebApiSessionToken: {userWebApiSessionToken}");
 
-                    responseDto.DeveloperCode = DeveloperCode.Error;
-                    responseDto.DeveloperMessage = "Error.";
+                    responseDto.SetError();
                 }
                 else
                 {
@@ -100,27 +94,45 @@ namespace Eadent.Identity.Access
                     {
                         Logger.LogError($"Invalid UserWebApiUserSessionToken: UserSessionGuid: {userSessionGuid}");
 
-                        responseDto.DeveloperCode = DeveloperCode.Error;
-                        responseDto.DeveloperMessage = "Error.";
+                        responseDto.SetError();
                     }
                     else
                     {
                         SessionStatus sessionStatusId = SessionStatus.Error;
 
                         (sessionStatusId, userSessionEntity) = EadentUserIdentity.CheckAndUpdateUserSession(userSessionEntity.UserSessionToken, ipAddress);
-#if false
+
                         switch (sessionStatusId)
                         {
-                                Error = 0,
-                                Inactive = 1,
-                                InvalidSessionToken = 2,
-                                SignedIn = 3,
-                                SignedOut = 4,
-                                TimedOutExpired = 5,
-                                Disabled = 6,
-                                SoftDeleted = 100
+                            case SessionStatus.SignedIn:
+
+                                responseDto.SetSuccess();
+                                break;
+
+                            case SessionStatus.TimedOutExpired:
+
+                                responseDto.Set(DeveloperCode.SessionTimedOutExpired, "User Session Has Timed Out/Expired.");
+                                break;
+
+                            case SessionStatus.SignedOut:
+
+                                responseDto.Set(DeveloperCode.SessionSignedOut, "User Session Is Signed Out.");
+                                break;
+
+                            case SessionStatus.InvalidSessionToken:
+
+                                responseDto.SetUnauthorised();
+                                break;
+
+                            case SessionStatus.Error:
+                            case SessionStatus.Inactive:
+                            case SessionStatus.Disabled:
+                            case SessionStatus.SoftDeleted:
+                            default:
+
+                                responseDto.SetError();
+                                break;
                         }
-#endif
                     }
                 }
             }
@@ -128,7 +140,7 @@ namespace Eadent.Identity.Access
             {
                 Logger.LogError(exception, "An Exception has occurred.");
 
-                responseDto.DeveloperCode = DeveloperCode.Error;
+                responseDto.SetError();
             }
 
             return responseDto;
@@ -136,7 +148,70 @@ namespace Eadent.Identity.Access
 
         public UserSessionSignOutResponseDto SignOutUser(string userWebApiSessionToken, string ipAddress)
         {
-            throw new System.NotImplementedException();
+            var responseDto = new UserSessionSignOutResponseDto();
+
+            try
+            {
+                Guid userSessionGuid = Guid.Empty;
+
+                if (userWebApiSessionToken != null)
+                {
+                    Guid.TryParse(userWebApiSessionToken, out userSessionGuid);
+                }
+
+                if (userSessionGuid == Guid.Empty)
+                {
+                    Logger.LogError($"Invalid UserWebApiSessionToken: {userWebApiSessionToken}");
+
+                    responseDto.SetError();
+                }
+                else
+                {
+                    var userSessionEntity = UserSessionsRepository.GetFirstOrDefault(entity => entity.UserSessionGuid == userSessionGuid);
+
+                    if (userSessionEntity == null)
+                    {
+                        Logger.LogError($"Invalid UserWebApiUserSessionToken: UserSessionGuid: {userSessionGuid}");
+
+                        responseDto.SetError();
+                    }
+                    else
+                    {
+                        SignOutStatus signOutStatusId = EadentUserIdentity.SignOutUser(userSessionEntity.UserSessionToken, ipAddress);
+
+                        switch (signOutStatusId)
+                        {
+                            case SignOutStatus.Success:
+
+                                responseDto.SetSuccess();
+                                break;
+
+                            case SignOutStatus.InvalidSessionToken:
+
+                                responseDto.SetUnauthorised();
+                                break;
+
+                            case SignOutStatus.Error:
+                            case SignOutStatus.InactiveSession:
+                            case SignOutStatus.SessionAlreadySignedOut:
+                            case SignOutStatus.SessionDisabled:
+                            case SignOutStatus.SessionSoftDeleted:
+                            default:
+
+                                responseDto.SetError();
+                                break;
+                        }
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                Logger.LogError(exception, "An Exception has occurred.");
+
+                responseDto.SetError();
+            }
+
+            return responseDto;
         }
     }
 }
