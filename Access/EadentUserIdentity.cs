@@ -223,6 +223,7 @@ namespace Eadent.Identity.Access
             }
             catch (Exception exception)
             {
+                Logger.LogError(exception, "An Exception has occurred.");
             }
 
             return (userSessionStatusId, signInStatusId);
@@ -364,7 +365,7 @@ namespace Eadent.Identity.Access
             }
             catch (Exception exception)
             {
-                Logger.LogError(exception, $"Exception in {nameof(PerformHardDelete)}.");
+                Logger.LogError(exception, "An Exception has occurred.");
 
                 deleteUserStatusId = DeleteUserStatus.Error;
             }
@@ -410,6 +411,8 @@ namespace Eadent.Identity.Access
             }
             catch (Exception exception)
             {
+                Logger.LogError(exception, "An Exception has occurred.");
+
                 EadentUserIdentityDatabase.RollbackTransaction();
 
                 registerStatusId = RegisterUserStatus.Error;
@@ -503,6 +506,8 @@ namespace Eadent.Identity.Access
             }
             catch (Exception exception)
             {
+                Logger.LogError(exception, "An Exception has occurred.");
+
                 EadentUserIdentityDatabase.RollbackTransaction();
             }
 
@@ -577,6 +582,8 @@ namespace Eadent.Identity.Access
             }
             catch (Exception exception)
             {
+                Logger.LogError(exception, "An Exception has occurred.");
+
                 sessionStatusId = SessionStatus.Error;
             }
 
@@ -699,6 +706,8 @@ namespace Eadent.Identity.Access
             }
             catch (Exception exception)
             {
+                Logger.LogError(exception, "An Exception has occurred.");
+
                 changeUserEMailStatusId = ChangeUserEMailStatus.Error;
             }
 
@@ -805,6 +814,8 @@ namespace Eadent.Identity.Access
             }
             catch (Exception exception)
             {
+                Logger.LogError(exception, "An Exception has occurred.");
+
                 changeUserPasswordStatusId = ChangeUserPasswordStatus.Error;
             }
 
@@ -868,6 +879,8 @@ namespace Eadent.Identity.Access
             }
             catch (Exception exception)
             {
+                Logger.LogError(exception, "An Exception has occurred.");
+
                 signOutStatusId = SignOutStatus.Error;
             }
 
@@ -964,7 +977,7 @@ namespace Eadent.Identity.Access
             }
             catch (Exception exception)
             {
-                // TODO: LOGGING:
+                Logger.LogError(exception, "An Exception has occurred.");
 
                 EadentUserIdentityDatabase.RollbackTransaction();
 
@@ -1158,7 +1171,7 @@ namespace Eadent.Identity.Access
             }
             catch (Exception exception)
             {
-                // TODO: LOGGING:
+                Logger.LogError(exception, "An Exception has occurred.");
 
                 EadentUserIdentityDatabase.RollbackTransaction();
 
@@ -1220,6 +1233,8 @@ namespace Eadent.Identity.Access
             }
             catch (Exception exception)
             {
+                Logger.LogError(exception, "An Exception has occurred.");
+
                 passwordResetRequestStatusId = UserPasswordResetRequestStatus.Error;
             }
 
@@ -1284,6 +1299,8 @@ namespace Eadent.Identity.Access
             }
             catch (Exception exception)
             {
+                Logger.LogError(exception, "An Exception has occurred.");
+
                 passwordResetRequestStatusId = UserPasswordResetRequestStatus.Error;
             }
 
@@ -1371,6 +1388,8 @@ namespace Eadent.Identity.Access
             }
             catch (Exception exception)
             {
+                Logger.LogError(exception, "An Exception has occurred.");
+
                 passwordResetRequestStatusId = UserPasswordResetRequestStatus.Error;
             }
 
@@ -1428,6 +1447,8 @@ namespace Eadent.Identity.Access
             }
             catch (Exception exception)
             {
+                Logger.LogError(exception, "An Exception has occurred.");
+
                 passwordResetRequestStatusId = UserPasswordResetRequestStatus.Error;
             }
 
