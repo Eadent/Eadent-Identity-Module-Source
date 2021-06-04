@@ -68,7 +68,7 @@ namespace Eadent.Identity.Access
             return Convert.ToBase64String(hash);
         }
 
-        private string HashUserPasswordHMACSHA512(string plainTextPassword, Guid saltGuid)
+        private string HashUserPasswordHMACSHA512(string plainTextPassword, int passwordHashIterationCount, int passwordHashNumDerivedKeyBytes, Guid saltGuid)
         {
             string hashedPassword = null;
 
@@ -76,7 +76,7 @@ namespace Eadent.Identity.Access
 
             byte[] salt = Encoding.Unicode.GetBytes($"{settings.SiteSalt}-{saltGuid}");
 
-            var derivedKey = KeyDerivation.Pbkdf2(plainTextPassword, salt, KeyDerivationPrf.HMACSHA512, settings.IterationCount, settings.NumDerivedKeyBytes);
+            var derivedKey = KeyDerivation.Pbkdf2(plainTextPassword, salt, KeyDerivationPrf.HMACSHA512, passwordHashIterationCount, passwordHashNumDerivedKeyBytes);
 
             hashedPassword = Convert.ToBase64String(derivedKey);
 
@@ -89,14 +89,19 @@ namespace Eadent.Identity.Access
 
             var saltGuid = Guid.NewGuid();
 
+            var passwordHashIterationCount = EadentIdentitySettings.UserIdentity.Security.Hasher.IterationCount;
+            var passwordHashNumDerivedKeyBytes = EadentIdentitySettings.UserIdentity.Security.Hasher.NumDerivedKeyBytes;
+
             var userEntity = new UserEntity()
             {
                 UserGuid = userGuid,
                 UserStatusId = UserStatus.Enabled,
                 DisplayName = displayName,
                 PasswordVersionId = PasswordVersion.HMACSHA512,
+                PasswordHashIterationCount = passwordHashIterationCount,
+                PasswordHashNumDerivedKeyBytes = passwordHashNumDerivedKeyBytes,
                 SaltGuid = saltGuid,
-                Password = HashUserPasswordHMACSHA512(plainTextPassword, saltGuid),
+                Password = HashUserPasswordHMACSHA512(plainTextPassword, passwordHashIterationCount, passwordHashNumDerivedKeyBytes, saltGuid),
                 PasswordDateTimeUtc = utcNow,
                 ChangePasswordNextSignIn = false,
                 SignInErrorCount = 0,
@@ -441,6 +446,9 @@ namespace Eadent.Identity.Access
 
             DateTime? previousUserSignInDateTimeUtc = null;
 
+            var passwordHashIterationCount = EadentIdentitySettings.UserIdentity.Security.Hasher.IterationCount;
+            var passwordHashNumDerivedKeyBytes = EadentIdentitySettings.UserIdentity.Security.Hasher.NumDerivedKeyBytes;
+
             try
             {
                 UserEntity userEntity = null;
@@ -456,7 +464,7 @@ namespace Eadent.Identity.Access
                 if (userEMailEntity == null)
                 {
                     // Fake a Hashed Password.
-                    hashedPassword = HashUserPasswordHMACSHA512(plainTextPassword, Guid.NewGuid());
+                    hashedPassword = HashUserPasswordHMACSHA512(plainTextPassword, passwordHashIterationCount, passwordHashNumDerivedKeyBytes, Guid.NewGuid());
 
                     signInStatusId = SignInStatus.InvalidEMailAddress;
                 }
@@ -468,13 +476,13 @@ namespace Eadent.Identity.Access
                     {
                         case PasswordVersion.HMACSHA512:
 
-                            hashedPassword = HashUserPasswordHMACSHA512(plainTextPassword, userEntity.SaltGuid);
+                            hashedPassword = HashUserPasswordHMACSHA512(plainTextPassword, userEntity.PasswordHashIterationCount, userEntity.PasswordHashNumDerivedKeyBytes, userEntity.SaltGuid);
                             break;
 
                         default:
 
                             // Fake a Hashed Password.
-                            hashedPassword = HashUserPasswordHMACSHA512(plainTextPassword, Guid.NewGuid());
+                            hashedPassword = HashUserPasswordHMACSHA512(plainTextPassword, passwordHashIterationCount, passwordHashNumDerivedKeyBytes, Guid.NewGuid());
                             break;
                     }
                 }
@@ -614,6 +622,9 @@ namespace Eadent.Identity.Access
 
             DateTime utcNow = DateTime.UtcNow;
 
+            var passwordHashIterationCount = EadentIdentitySettings.UserIdentity.Security.Hasher.IterationCount;
+            var passwordHashNumDerivedKeyBytes = EadentIdentitySettings.UserIdentity.Security.Hasher.NumDerivedKeyBytes;
+
             try
             {
                 userSessionEntity = UserSessionsRepository.GetFirstOrDefaultIncludeUserAndRoles(userSessionToken);
@@ -641,13 +652,13 @@ namespace Eadent.Identity.Access
                             {
                                 case PasswordVersion.HMACSHA512:
 
-                                    hashedPassword = HashUserPasswordHMACSHA512(plainTextPassword, userEntity.SaltGuid);
+                                    hashedPassword = HashUserPasswordHMACSHA512(plainTextPassword, userEntity.PasswordHashIterationCount, userEntity.PasswordHashNumDerivedKeyBytes, userEntity.SaltGuid);
                                     break;
 
                                 default:
 
                                     // Fake a Hashed Password.
-                                    HashUserPasswordHMACSHA512(plainTextPassword, Guid.NewGuid());
+                                    HashUserPasswordHMACSHA512(plainTextPassword, passwordHashIterationCount, passwordHashNumDerivedKeyBytes, Guid.NewGuid());
                                     break;
                             }
 
@@ -740,6 +751,9 @@ namespace Eadent.Identity.Access
 
             DateTime utcNow = DateTime.UtcNow;
 
+            var passwordHashIterationCount = EadentIdentitySettings.UserIdentity.Security.Hasher.IterationCount;
+            var passwordHashNumDerivedKeyBytes = EadentIdentitySettings.UserIdentity.Security.Hasher.NumDerivedKeyBytes;
+
             try
             {
                 userSessionEntity = UserSessionsRepository.GetFirstOrDefaultIncludeUserAndRoles(userSessionToken);
@@ -767,13 +781,13 @@ namespace Eadent.Identity.Access
                             {
                                 case PasswordVersion.HMACSHA512:
 
-                                    hashedPassword = HashUserPasswordHMACSHA512(oldPlainTextPassword, userEntity.SaltGuid);
+                                    hashedPassword = HashUserPasswordHMACSHA512(oldPlainTextPassword, userEntity.PasswordHashIterationCount, userEntity.PasswordHashNumDerivedKeyBytes, userEntity.SaltGuid);
                                     break;
 
                                 default:
 
                                     // Fake a Hashed Password.
-                                    HashUserPasswordHMACSHA512(oldPlainTextPassword, Guid.NewGuid());
+                                    HashUserPasswordHMACSHA512(oldPlainTextPassword, passwordHashIterationCount, passwordHashNumDerivedKeyBytes, Guid.NewGuid());
                                     break;
                             }
 
@@ -783,7 +797,7 @@ namespace Eadent.Identity.Access
                             }
                             else
                             {
-                                string newHashedPassword = HashUserPasswordHMACSHA512(newPlainTextPassword, userEntity.SaltGuid);
+                                string newHashedPassword = HashUserPasswordHMACSHA512(newPlainTextPassword, userEntity.PasswordHashIterationCount, userEntity.PasswordHashNumDerivedKeyBytes, userEntity.SaltGuid);
 
                                 userEntity.PasswordVersionId = PasswordVersion.HMACSHA512;
                                 userEntity.Password = newHashedPassword;
@@ -1380,7 +1394,7 @@ namespace Eadent.Identity.Access
 
                                     UserPasswordResetsRepository.Update(userPasswordResetEntity);
 
-                                    string newHashedPassword = HashUserPasswordHMACSHA512(newPlainTextPassword, userEntity.SaltGuid);
+                                    string newHashedPassword = HashUserPasswordHMACSHA512(newPlainTextPassword, userEntity.PasswordHashIterationCount, userEntity.PasswordHashNumDerivedKeyBytes, userEntity.SaltGuid);
 
                                     userEntity.PasswordVersionId = PasswordVersion.HMACSHA512;
                                     userEntity.Password = newHashedPassword;

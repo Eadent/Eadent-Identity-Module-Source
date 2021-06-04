@@ -26,6 +26,10 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Entities
 
         public PasswordVersion PasswordVersionId { get; set; }
 
+        public int PasswordHashIterationCount { get; set; }
+
+        public int PasswordHashNumDerivedKeyBytes { get; set; }
+
         public Guid SaltGuid { get; set; }
 
         public string Password { get; set; }

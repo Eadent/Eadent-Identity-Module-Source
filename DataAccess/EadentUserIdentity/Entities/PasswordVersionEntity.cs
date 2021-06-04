@@ -11,7 +11,6 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Entities
     {
         public PasswordVersionEntity()
         {
-            Users = new HashSet<UserEntity>();
         }
 
         [Key]
@@ -20,7 +19,5 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Entities
         public string Name { get; set; }
 
         public DateTime CreatedDateTimeUtc { get; set; }
-
-        public virtual ICollection<UserEntity> Users { get; set; }
     }
 }

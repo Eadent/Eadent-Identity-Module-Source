@@ -2,9 +2,9 @@
 {
     public enum PasswordResetStatus : short
     {
-        Open = 0,
-        Aborted = 1,
-        TimedOutExpired = 2,
-        Closed = 3
+        Closed = 0,
+        Open = 1,
+        Aborted = 2,
+        TimedOutExpired = 3
     }
 }
