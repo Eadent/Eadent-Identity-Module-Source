@@ -11,6 +11,6 @@
 6.	Interfaces will be in separate files to Classes.
 7.	Database Schema Names and Table Names are Title Case.
 8.	All Classes are Nouns where possible and Title Case.
-9.	Add Enums and Values are Title Case.
+9.	All Enums and Values are Title Case.
 10.	All Definitions are Title Case, without underscores.
 
