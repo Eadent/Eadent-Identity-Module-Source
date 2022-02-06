@@ -28,11 +28,11 @@ namespace Eadent.Identity.Access
             UserSessionsRepository = userSessionsRepository;
         }
 
-        public UserSessionSignInResponseDto SignInUser(UserSessionSignInRequestDto requestDto, string ipAddress, decimal? googleReCaptchaScore)
+        public UserSessionSignInResponseDto SignInUser(UserSessionSignInRequestDto requestDto, string ipAddress)
         {
             var responseDto = new UserSessionSignInResponseDto();
 
-            (SignInStatus signInStatusId, UserSessionEntity userSessionEntity, DateTime? previousUserSignInDateTimeUtc) = EadentUserIdentity.SignInUser(requestDto.EMailAddress, requestDto.PlainTextPassword, ipAddress, googleReCaptchaScore);
+            (SignInStatus signInStatusId, UserSessionEntity userSessionEntity, DateTime? previousUserSignInDateTimeUtc) = EadentUserIdentity.SignInUser(requestDto.EMailAddress, requestDto.PlainTextPassword, ipAddress, requestDto.GoogleReCaptchaScore);
 
             switch (signInStatusId)
             {

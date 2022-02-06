@@ -5,7 +5,7 @@ namespace Eadent.Identity.Access
 {
     public interface IEadentWebApiUserIdentity
     {
-        UserSessionSignInResponseDto SignInUser(UserSessionSignInRequestDto requestDto, string ipAddress, decimal? googleReCaptchaScore);
+        UserSessionSignInResponseDto SignInUser(UserSessionSignInRequestDto requestDto, string ipAddress);
 
         UserCheckAndUpdateSessionResponseDto CheckAndUpdateUserSession(string userWebApiSessionToken, UserCheckAndUpdateSessionRequestDto requestDto, string ipAddress);
 
