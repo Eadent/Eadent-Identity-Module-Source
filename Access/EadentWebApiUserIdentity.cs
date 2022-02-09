@@ -48,14 +48,14 @@ namespace Eadent.Identity.Access
 
                     responseDto.SignInUrl = EadentIdentitySettings.UserIdentity.Account.SignInUrl;
                     responseDto.PreviousSignInDateTimeUtc = previousUserSignInDateTimeUtc;
-                    responseDto.Set(DeveloperCode.SuccessUserMustChangePassword, "Success - User Must Change Password.");
+                    responseDto.Set(CommonDeveloperCode.SuccessUserMustChangePassword, "Success - User Must Change Password.");
                     break;
 
                 case SignInStatus.UserLockedOut:
 
                     responseDto.SignInLockOutDateTimeUtc = userSessionEntity.User.SignInLockOutDateTimeUtc;
                     responseDto.SignInLockOutDurationSeconds = userSessionEntity.User.SignInLockOutDurationSeconds;
-                    responseDto.Set(DeveloperCode.UserLockedOut, "User Is Locked Out.");
+                    responseDto.Set(CommonDeveloperCode.UserLockedOut, "User Is Locked Out.");
                     break;
 
                 // To prevent any Hackers determining whether or not an E-Mail Address is Valid, we return generic Errors for most cases.
@@ -117,12 +117,12 @@ namespace Eadent.Identity.Access
 
                             case SessionStatus.TimedOutExpired:
 
-                                responseDto.Set(DeveloperCode.SessionTimedOutExpired, "User Session Has Timed Out/Expired.");
+                                responseDto.Set(CommonDeveloperCode.SessionTimedOutExpired, "User Session Has Timed Out/Expired.");
                                 break;
 
                             case SessionStatus.SignedOut:
 
-                                responseDto.Set(DeveloperCode.SessionSignedOut, "User Session Is Signed Out.");
+                                responseDto.Set(CommonDeveloperCode.SessionSignedOut, "User Session Is Signed Out.");
                                 break;
 
                             case SessionStatus.InvalidSessionToken:
