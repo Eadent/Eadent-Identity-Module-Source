@@ -23,6 +23,8 @@
         {
             public class HasherSettings
             {
+                public string PasswordSalt { get; set; }
+
                 public string SiteSalt { get; set; }
 
                 public int IterationCount { get; set; }
