@@ -177,7 +177,7 @@ namespace Eadent.Identity.Access
 
                     if (userSessionEntity == null)
                     {
-                        Logger.LogError($"Invalid UserWebApiUserSessionToken: UserSessionGuid: {userSessionGuid}");
+                        Logger.LogError($"Invalid UserWebApiSessionToken: UserSessionGuid: {userSessionGuid}");
 
                         responseDto.SetError();
                     }
