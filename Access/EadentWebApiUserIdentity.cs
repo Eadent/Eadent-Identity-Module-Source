@@ -32,7 +32,7 @@ namespace Eadent.Identity.Access
         {
             var responseDto = new UserSessionSignInResponseDto();
 
-            (SignInStatus signInStatusId, UserSessionEntity userSessionEntity, DateTime? previousUserSignInDateTimeUtc) = EadentUserIdentity.SignInUser(requestDto.EMailAddress, requestDto.PlainTextPassword, ipAddress, requestDto.GoogleReCaptchaScore);
+            (SignInStatus signInStatusId, UserSessionEntity userSessionEntity, DateTime? previousUserSignInDateTimeUtc) = EadentUserIdentity.SignInUser(requestDto.EMailAddress, requestDto.PlainTextPassword, ipAddress, googleReCaptchaScore: null);
 
             switch (signInStatusId)
             {
@@ -48,14 +48,14 @@ namespace Eadent.Identity.Access
 
                     responseDto.SignInUrl = EadentIdentitySettings.UserIdentity.Account.SignInUrl;
                     responseDto.PreviousSignInDateTimeUtc = previousUserSignInDateTimeUtc;
-                    responseDto.Set(CommonDeveloperCode.SuccessUserMustChangePassword, "Success - User Must Change Password.");
+                    responseDto.Set((long)CommonDeveloperCode.SuccessUserMustChangePassword, "Success - User Must Change Password.");
                     break;
 
                 case SignInStatus.UserLockedOut:
 
                     responseDto.SignInLockOutDateTimeUtc = userSessionEntity.User.SignInLockOutDateTimeUtc;
                     responseDto.SignInLockOutDurationSeconds = userSessionEntity.User.SignInLockOutDurationSeconds;
-                    responseDto.Set(CommonDeveloperCode.UserLockedOut, "User Is Locked Out.");
+                    responseDto.Set((long)CommonDeveloperCode.UserLockedOut, "User Is Locked Out.");
                     break;
 
                 // To prevent any Hackers determining whether or not an E-Mail Address is Valid, we return generic Errors for most cases.
@@ -117,12 +117,12 @@ namespace Eadent.Identity.Access
 
                             case SessionStatus.TimedOutExpired:
 
-                                responseDto.Set(CommonDeveloperCode.SessionTimedOutExpired, "User Session Has Timed Out/Expired.");
+                                responseDto.Set((long)CommonDeveloperCode.SessionTimedOutExpired, "User Session Has Timed Out/Expired.");
                                 break;
 
                             case SessionStatus.SignedOut:
 
-                                responseDto.Set(CommonDeveloperCode.SessionSignedOut, "User Session Is Signed Out.");
+                                responseDto.Set((long)CommonDeveloperCode.SessionSignedOut, "User Session Is Signed Out.");
                                 break;
 
                             case SessionStatus.InvalidSessionToken:

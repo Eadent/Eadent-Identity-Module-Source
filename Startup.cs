@@ -31,6 +31,7 @@ namespace Eadent.Identity
             services.AddTransient<IUserPasswordResetsRepository, UserPasswordResetsRepository>();
 
             services.AddTransient<IEadentUserIdentity, EadentUserIdentity>();
+            services.AddTransient<IEadentWebApiUserIdentity, EadentWebApiUserIdentity>();
         }
     }
 }
