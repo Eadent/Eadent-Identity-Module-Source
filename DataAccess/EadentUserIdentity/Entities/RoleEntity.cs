@@ -22,7 +22,7 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Entities
 
         public short RoleLevel { get; set; }
 
-        public string Role { get; set; }
+        public string RoleName { get; set; }
 
         public DateTime CreatedDateTimeUtc { get; set; }
 
