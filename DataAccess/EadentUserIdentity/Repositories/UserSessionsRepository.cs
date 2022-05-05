@@ -2,6 +2,7 @@
 using Eadent.Identity.DataAccess.EadentUserIdentity.Databases;
 using Eadent.Identity.DataAccess.EadentUserIdentity.Entities;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.Linq;
 
 namespace Eadent.Identity.DataAccess.EadentUserIdentity.Repositories
@@ -19,6 +20,17 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Repositories
                 .ThenInclude(entity => entity.UserRoles)
                 .ThenInclude(entity => entity.Role)
                 .FirstOrDefault(entity => entity.UserSessionToken == userSessionToken);
+
+            return userSessionEntity;
+        }
+
+        public UserSessionEntity GetFirstOrDefaultByUserSessionGuidIncludeUserAndRoles(Guid userSessionGuid)
+        {
+            var userSessionEntity = Database.Context.Set<UserSessionEntity>()
+                .Include(entity => entity.User)
+                .ThenInclude(entity => entity.UserRoles)
+                .ThenInclude(entity => entity.Role)
+                .FirstOrDefault(entity => entity.UserSessionGuid == userSessionGuid);
 
             return userSessionEntity;
         }

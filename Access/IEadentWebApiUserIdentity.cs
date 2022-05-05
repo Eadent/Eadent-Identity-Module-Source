@@ -7,7 +7,7 @@ namespace Eadent.Identity.Access
     {
         UserSessionSignInResponseDto SignInUser(UserSessionSignInRequestDto requestDto, string userIpAddress);
 
-        RegisterUserResponseDto RegisterUser(RegisterUserRequestDto requestDto, string userIpAddress);
+        UserRegisterResponseDto RegisterUser(string userWebApiSessionToken, UserRegisterRequestDto requestDto, string userIpAddress);
 
         UserCheckAndUpdateSessionResponseDto CheckAndUpdateUserSession(string userWebApiSessionToken, UserCheckAndUpdateSessionRequestDto requestDto, string userIpAddress);
 

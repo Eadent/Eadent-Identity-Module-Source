@@ -4,6 +4,7 @@ using Eadent.Identity.Configuration;
 using Eadent.Identity.DataAccess.EadentUserIdentity.Entities;
 using Eadent.Identity.DataAccess.EadentUserIdentity.Repositories;
 using Eadent.Identity.Definitions;
+using Eadent.Identity.Helpers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
@@ -73,9 +74,79 @@ namespace Eadent.Identity.Access
             return responseDto;
         }
 
-        public RegisterUserResponseDto RegisterUser(RegisterUserRequestDto requestDto, string userIpAddress)
+        public UserRegisterResponseDto RegisterUser(string userWebApiSessionToken, UserRegisterRequestDto requestDto, string userIpAddress)
         {
+            var responseDto = new UserRegisterResponseDto();
 
+            try
+            {
+                Guid userSessionGuid = Guid.Empty;
+
+                if (userWebApiSessionToken != null)
+                {
+                    Guid.TryParse(userWebApiSessionToken, out userSessionGuid);
+                }
+
+                if (userSessionGuid == Guid.Empty)
+                {
+                    Logger.LogError($"Invalid UserWebApiSessionToken: {userWebApiSessionToken}");
+
+                    responseDto.SetError();
+                }
+                else
+                {
+                    var userSessionEntity = UserSessionsRepository.GetFirstOrDefaultByUserSessionGuidIncludeUserAndRoles(userSessionGuid);
+
+                    if (userSessionEntity == null)
+                    {
+                        Logger.LogError($"Invalid UserWebApiSessionToken: UserSessionGuid: {userSessionGuid}");
+
+                        responseDto.SetError();
+                    }
+                    else if (!UserRoleHelper.IsPrivileged(userSessionEntity.User.UserRoles))
+                    {
+                        Logger.LogWarning($"Not Privilged So Cannot Register User.");
+
+                        responseDto.Set((long)CommonDeveloperCode.Unauthorised, "Insufficient Privilege.");
+                    }
+                    else
+                    {
+                        (RegisterUserStatus registerUserStatusId, UserEntity userEntity) = EadentUserIdentity.RegisterUser(requestDto.CreatedByApplicationId,
+                            requestDto.UserGuidString, (Role)requestDto.RoleId, requestDto.DisplayName, requestDto.EMailAddress, requestDto.MobilePhoneNumber,
+                            requestDto.PlainTextPassword, userIpAddress, null);
+
+                        switch (registerUserStatusId)
+                        {
+                            case RegisterUserStatus.Success:
+
+                                responseDto.SetSuccess();
+                                responseDto.RegisterUserStatusId = (short)registerUserStatusId;
+                                responseDto.UserId = userEntity.UserId;
+                                responseDto.UserGuidString = userEntity.UserGuid.ToString();
+                                break;
+
+                            case RegisterUserStatus.UserAlreadyExists:
+
+                                responseDto.Set((long)CommonDeveloperCode.UserAlreadyExists, "User Already Exists.");
+                                break;
+
+                            case RegisterUserStatus.Error:
+                            default:
+
+                                responseDto.SetError();
+                                break;
+                        }
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                Logger.LogError(exception, "An Exception has occurred.");
+
+                responseDto.SetError();
+            }
+
+            return responseDto;
         }
 
         public UserCheckAndUpdateSessionResponseDto CheckAndUpdateUserSession(string userWebApiSessionToken, UserCheckAndUpdateSessionRequestDto requestDto, string userIpAddress)
