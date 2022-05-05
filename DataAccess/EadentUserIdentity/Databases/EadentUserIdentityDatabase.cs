@@ -8,9 +8,6 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Databases
 {
     internal class EadentUserIdentityDatabase : BaseDatabase, IEadentUserIdentityDatabase
     {
-        // Attributes/Properties.
-        private EadentIdentitySettings EadentIdentitySettings { get; }
-
         // Database Tables.
         public virtual DbSet<UserEntity> Users { get; set; }
 
@@ -32,7 +29,7 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Databases
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.HasDefaultSchema(EadentIdentitySettings.UserIdentity.Database.DatabaseSchema);
+            modelBuilder.HasDefaultSchema(EadentIdentitySettings.Instance.UserIdentity.Database.DatabaseSchema);
 
             base.OnModelCreating(modelBuilder);
         }
@@ -42,12 +39,10 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Databases
             base.OnConfiguring(optionsBuilder);
         }
 
-        public EadentUserIdentityDatabase(IConfiguration configuration, DbContextOptions<EadentUserIdentityDatabase> options) : base(options)
+        public EadentUserIdentityDatabase(DbContextOptions<EadentUserIdentityDatabase> options) : base(options)
         {
-            EadentIdentitySettings = configuration.GetSection(EadentIdentitySettings.SectionName).Get<EadentIdentitySettings>();
-
-            DatabaseName = EadentIdentitySettings.UserIdentity.Database.DatabaseName;
-            DatabaseSchema = EadentIdentitySettings.UserIdentity.Database.DatabaseSchema;
+            DatabaseName = EadentIdentitySettings.Instance.UserIdentity.Database.DatabaseName;
+            DatabaseSchema = EadentIdentitySettings.Instance.UserIdentity.Database.DatabaseSchema;
         }
     }
 }

@@ -24,8 +24,6 @@ namespace Eadent.Identity.Access
     {
         private ILogger<EadentUserIdentity> Logger { get; }
 
-        private EadentIdentitySettings EadentIdentitySettings { get; }
-
         private IEadentUserIdentityDatabase EadentUserIdentityDatabase { get; }
 
         private IUsersRepository UsersRepository { get; }
@@ -45,7 +43,6 @@ namespace Eadent.Identity.Access
             IUserSessionsRepository userSessionsRepository, IUserPasswordResetsRepository userPasswordResetsRepository)
         {
             Logger = logger;
-            EadentIdentitySettings = configuration.GetSection(EadentIdentitySettings.SectionName).Get<EadentIdentitySettings>();
             EadentUserIdentityDatabase = eadentUserIdentityDatabase;
             UsersRepository = usersRepository;
             UserRolesRepository = userRolesRepository;
@@ -69,7 +66,7 @@ namespace Eadent.Identity.Access
         {
             string hashedPassword = null;
 
-            var settings = EadentIdentitySettings.UserIdentity.Security.Hasher;
+            var settings = EadentIdentitySettings.Instance.UserIdentity.Security.Hasher;
 
             byte[] salt = Encoding.Unicode.GetBytes($"{settings.PasswordSalt}-{saltGuid}");
 
@@ -95,8 +92,8 @@ namespace Eadent.Identity.Access
 
             var passwordSaltGuid = Guid.NewGuid();
 
-            var passwordHashIterationCount = EadentIdentitySettings.UserIdentity.Security.Hasher.IterationCount;
-            var passwordHashNumDerivedKeyBytes = EadentIdentitySettings.UserIdentity.Security.Hasher.NumDerivedKeyBytes;
+            var passwordHashIterationCount = EadentIdentitySettings.Instance.UserIdentity.Security.Hasher.IterationCount;
+            var passwordHashNumDerivedKeyBytes = EadentIdentitySettings.Instance.UserIdentity.Security.Hasher.NumDerivedKeyBytes;
 
             var userEntity = new UserEntity()
             {
@@ -119,8 +116,8 @@ namespace Eadent.Identity.Access
                 PasswordLastUpdatedDateTimeUtc = utcNow,
                 ChangePasswordNextSignIn = false,
                 SignInErrorCount = 0,
-                SignInErrorLimit = EadentIdentitySettings.UserIdentity.Account.SignInErrorLimit,
-                SignInLockOutDurationSeconds = EadentIdentitySettings.UserIdentity.Account.SignInLockOutDurationSeconds,
+                SignInErrorLimit = EadentIdentitySettings.Instance.UserIdentity.Account.SignInErrorLimit,
+                SignInLockOutDurationSeconds = EadentIdentitySettings.Instance.UserIdentity.Account.SignInLockOutDurationSeconds,
                 SignInLockOutDateTimeUtc = null,
                 CreatedDateTimeUtc = utcNow,
                 LastUpdatedDateTimeUtc = null
@@ -172,7 +169,7 @@ namespace Eadent.Identity.Access
                 UserSessionToken = userSessionToken,
                 UserSessionGuid = Guid.NewGuid(),
                 UserSessionStatusId = userSessionStatusId,
-                UserSessionExpirationDurationSeconds = EadentIdentitySettings.UserIdentity.Account.SessionExpirationDurationSeconds,
+                UserSessionExpirationDurationSeconds = EadentIdentitySettings.Instance.UserIdentity.Account.SessionExpirationDurationSeconds,
                 EMailAddress = eMailAddress,
                 MobilePhoneNumber = userEntity?.MobilePhoneNumber,
                 UserIpAddress = userIpAddress,
@@ -274,7 +271,7 @@ namespace Eadent.Identity.Access
                 ResetToken = resetToken,
                 PasswordResetStatusId = PasswordResetStatus.Open,
                 ResetTokenRequestedDateTimeUtc = utcNow,
-                ResetTokenExpirationDurationSeconds = EadentIdentitySettings.UserIdentity.Account.PasswordResetExpirationDurationSeconds,
+                ResetTokenExpirationDurationSeconds = EadentIdentitySettings.Instance.UserIdentity.Account.PasswordResetExpirationDurationSeconds,
                 EMailAddress = eMailAddress,
                 UserIpAddress = userIpAddress,
                 UserId = userEntity?.UserId
@@ -445,8 +442,8 @@ namespace Eadent.Identity.Access
 
             DateTime? previousUserSignInDateTimeUtc = null;
 
-            var passwordHashIterationCount = EadentIdentitySettings.UserIdentity.Security.Hasher.IterationCount;
-            var passwordHashNumDerivedKeyBytes = EadentIdentitySettings.UserIdentity.Security.Hasher.NumDerivedKeyBytes;
+            var passwordHashIterationCount = EadentIdentitySettings.Instance.UserIdentity.Security.Hasher.IterationCount;
+            var passwordHashNumDerivedKeyBytes = EadentIdentitySettings.Instance.UserIdentity.Security.Hasher.NumDerivedKeyBytes;
 
             try
             {
@@ -484,7 +481,7 @@ namespace Eadent.Identity.Access
                     }
                 }
 
-                userSessionToken = HashSHA512($"{EadentIdentitySettings.UserIdentity.Security.Hasher.SiteSalt}-{Guid.NewGuid()}");
+                userSessionToken = HashSHA512($"{EadentIdentitySettings.Instance.UserIdentity.Security.Hasher.SiteSalt}-{Guid.NewGuid()}");
 
                 if (userEntity != null)
                 {
@@ -619,8 +616,8 @@ namespace Eadent.Identity.Access
 
             DateTime utcNow = DateTime.UtcNow;
 
-            var passwordHashIterationCount = EadentIdentitySettings.UserIdentity.Security.Hasher.IterationCount;
-            var passwordHashNumDerivedKeyBytes = EadentIdentitySettings.UserIdentity.Security.Hasher.NumDerivedKeyBytes;
+            var passwordHashIterationCount = EadentIdentitySettings.Instance.UserIdentity.Security.Hasher.IterationCount;
+            var passwordHashNumDerivedKeyBytes = EadentIdentitySettings.Instance.UserIdentity.Security.Hasher.NumDerivedKeyBytes;
 
             try
             {
@@ -746,8 +743,8 @@ namespace Eadent.Identity.Access
 
             DateTime utcNow = DateTime.UtcNow;
 
-            var passwordHashIterationCount = EadentIdentitySettings.UserIdentity.Security.Hasher.IterationCount;
-            var passwordHashNumDerivedKeyBytes = EadentIdentitySettings.UserIdentity.Security.Hasher.NumDerivedKeyBytes;
+            var passwordHashIterationCount = EadentIdentitySettings.Instance.UserIdentity.Security.Hasher.IterationCount;
+            var passwordHashNumDerivedKeyBytes = EadentIdentitySettings.Instance.UserIdentity.Security.Hasher.NumDerivedKeyBytes;
 
             try
             {
@@ -1226,7 +1223,7 @@ namespace Eadent.Identity.Access
 
             try
             {
-                resetToken = HashSHA512($"{EadentIdentitySettings.UserIdentity.Security.Hasher.SiteSalt}-{Guid.NewGuid()}");
+                resetToken = HashSHA512($"{EadentIdentitySettings.Instance.UserIdentity.Security.Hasher.SiteSalt}-{Guid.NewGuid()}");
 
                 userEntity = UsersRepository.GetFirstOrDefaultByEMailAddressIncludeRoles(eMailAddress);
 

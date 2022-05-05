@@ -15,16 +15,13 @@ namespace Eadent.Identity.Access
     {
         private ILogger<EadentWebApiUserIdentity> Logger { get; }
 
-        private EadentIdentitySettings EadentIdentitySettings { get; }
-
         private IEadentUserIdentity EadentUserIdentity { get; }
 
         private IUserSessionsRepository UserSessionsRepository { get; }
 
-        public EadentWebApiUserIdentity(ILogger<EadentWebApiUserIdentity> logger, IConfiguration configuration, IEadentUserIdentity eadentUserIdentity, IUserSessionsRepository userSessionsRepository)
+        public EadentWebApiUserIdentity(ILogger<EadentWebApiUserIdentity> logger, IEadentUserIdentity eadentUserIdentity, IUserSessionsRepository userSessionsRepository)
         {
             Logger = logger;
-            EadentIdentitySettings = configuration.GetSection(EadentIdentitySettings.SectionName).Get<EadentIdentitySettings>();
             EadentUserIdentity = eadentUserIdentity;
             UserSessionsRepository = userSessionsRepository;
         }
@@ -47,7 +44,7 @@ namespace Eadent.Identity.Access
                 // If a User tries to Sign In and Must Change their Password, force them to use a Web Site/Page to Change it otherwise they may never do so.
                 case SignInStatus.SuccessUserMustChangePassword:
 
-                    responseDto.SignInUrl = EadentIdentitySettings.UserIdentity.Account.SignInUrl;
+                    responseDto.SignInUrl = EadentIdentitySettings.Instance.UserIdentity.Account.SignInUrl;
                     responseDto.PreviousSignInDateTimeUtc = previousUserSignInDateTimeUtc;
                     responseDto.Set((long)CommonDeveloperCode.SuccessUserMustChangePassword, "Success - User Must Change Password.");
                     break;

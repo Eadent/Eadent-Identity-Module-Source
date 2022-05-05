@@ -9,9 +9,9 @@ namespace Eadent.Identity
 {
     public static class Startup
     {
-        public static void ConfigureServices(IServiceCollection services, EadentIdentitySettings eadentIdentitySettings)
+        public static void ConfigureServices(IServiceCollection services)
         {
-            var databaseSettings = eadentIdentitySettings.UserIdentity.Database;
+            var databaseSettings = EadentIdentitySettings.Instance.UserIdentity.Database;
 
             string connectionString = $"Server={databaseSettings.DatabaseServer};Database={databaseSettings.DatabaseName};Application Name={databaseSettings.ApplicationName};User Id={databaseSettings.UserName};Password={databaseSettings.Password};";
 
