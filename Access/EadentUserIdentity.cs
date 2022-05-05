@@ -387,7 +387,7 @@ namespace Eadent.Identity.Access
         public (RegisterUserStatus registerUserStatusId, UserEntity userEntity) RegisterUser(int createdByApplicationId, string userGuidString, Role roleId, string displayName, string eMailAddress, string mobilePhoneNumber, string plainTextPassword, string userIpAddress, decimal? googleReCaptchaScore)
         {
             // TODO: Validate E-Mail Address.
-            // TODO: Validate Mpbile Phone Number.
+            // TODO: Validate Mobile Phone Number.
             // TODO: Validate Plain Text Password.
 
             var registerUserStatusId = RegisterUserStatus.Error;
