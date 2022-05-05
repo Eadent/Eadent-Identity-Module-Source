@@ -2,6 +2,6 @@
 {
     public enum SignInMultiFactorAuthenticationType : short
     {
-        EMail = 0
+        None = 0
     }
 }

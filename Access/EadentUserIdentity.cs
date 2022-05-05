@@ -103,7 +103,7 @@ namespace Eadent.Identity.Access
                 UserGuid = userGuid.GetValueOrDefault(),
                 UserStatusId = UserStatus.Enabled,
                 CreatedByApplicationId = createdByApplicationId,
-                SignInMultiFactorAuthenticationTypeId = SignInMultiFactorAuthenticationType.EMail,
+                SignInMultiFactorAuthenticationTypeId = SignInMultiFactorAuthenticationType.None,
                 DisplayName = displayName,
                 EMailAddress = eMailAddress,
                 EMailAddressConfirmationStatusId = ConfirmationStatus.NotConfirmed,
