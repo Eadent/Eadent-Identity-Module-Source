@@ -11,7 +11,6 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Entities
     {
         public UserEntity()
         {
-            UserEmails = new HashSet<UserEMailEntity>();
             UserRoles = new HashSet<UserRoleEntity>();
         }
 
@@ -22,7 +21,23 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Entities
 
         public UserStatus UserStatusId { get; set; }
 
+        public int CreatedByApplicationId { get; set; }
+
+        public SignInMultiFactorAuthenticationType SignInMultiFactorAuthenticationTypeId { get; set; }
+
         public string DisplayName { get; set; }
+
+        public string EMailAddress { get; set; }
+
+        public ConfirmationStatus EMailAddressConfirmationStatusId { get; set; }
+
+        public string EMailAddressConfirmationCode { get; set; }
+
+        public string MobilePhoneNumber { get; set; }
+
+        public ConfirmationStatus MobilePhoneNumberConfirmationStatusId { get; set; }
+
+        public string MobilePhoneNumberConfirmationCode { get; set; }
 
         public PasswordVersion PasswordVersionId { get; set; }
 
@@ -30,11 +45,11 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Entities
 
         public int PasswordHashNumDerivedKeyBytes { get; set; }
 
-        public Guid SaltGuid { get; set; }
+        public Guid PasswordSaltGuid { get; set; }
 
         public string Password { get; set; }
 
-        public DateTime PasswordDateTimeUtc { get; set; }
+        public DateTime PasswordLastUpdatedDateTimeUtc { get; set; }
 
         public bool ChangePasswordNextSignIn { get; set; }
 
@@ -48,11 +63,11 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Entities
 
         public DateTime CreatedDateTimeUtc { get; set; }
 
+        public DateTime? LastUpdatedDateTimeUtc { get; set; }
+
         public virtual PasswordVersionEntity PasswordVersion { get; set; }
 
         public virtual UserStatusEntity UserStatus { get; set; }
-
-        public virtual ICollection<UserEMailEntity> UserEmails { get; set; }
 
         public virtual ICollection<UserRoleEntity> UserRoles { get; set; }
     }

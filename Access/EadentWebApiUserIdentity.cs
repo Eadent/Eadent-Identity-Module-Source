@@ -28,11 +28,11 @@ namespace Eadent.Identity.Access
             UserSessionsRepository = userSessionsRepository;
         }
 
-        public UserSessionSignInResponseDto SignInUser(UserSessionSignInRequestDto requestDto, string ipAddress)
+        public UserSessionSignInResponseDto SignInUser(UserSessionSignInRequestDto requestDto, string userIpAddress)
         {
             var responseDto = new UserSessionSignInResponseDto();
 
-            (SignInStatus signInStatusId, UserSessionEntity userSessionEntity, DateTime? previousUserSignInDateTimeUtc) = EadentUserIdentity.SignInUser(requestDto.EMailAddress, requestDto.PlainTextPassword, ipAddress, googleReCaptchaScore: null);
+            (SignInStatus signInStatusId, UserSessionEntity userSessionEntity, DateTime? previousUserSignInDateTimeUtc) = EadentUserIdentity.SignInUser(SignInType.WebApi, requestDto.EMailAddress, requestDto.PlainTextPassword, userIpAddress, googleReCaptchaScore: null);
 
             switch (signInStatusId)
             {
@@ -73,7 +73,7 @@ namespace Eadent.Identity.Access
             return responseDto;
         }
 
-        public UserCheckAndUpdateSessionResponseDto CheckAndUpdateUserSession(string userWebApiSessionToken, UserCheckAndUpdateSessionRequestDto requestDto, string ipAddress)
+        public UserCheckAndUpdateSessionResponseDto CheckAndUpdateUserSession(string userWebApiSessionToken, UserCheckAndUpdateSessionRequestDto requestDto, string userIpAddress)
         {
             var responseDto = new UserCheckAndUpdateSessionResponseDto();
 
@@ -106,7 +106,7 @@ namespace Eadent.Identity.Access
                     {
                         SessionStatus sessionStatusId = SessionStatus.Error;
 
-                        (sessionStatusId, userSessionEntity) = EadentUserIdentity.CheckAndUpdateUserSession(userSessionEntity.UserSessionToken, ipAddress);
+                        (sessionStatusId, userSessionEntity) = EadentUserIdentity.CheckAndUpdateUserSession(userSessionEntity.UserSessionToken, userIpAddress);
 
                         switch (sessionStatusId)
                         {
@@ -152,7 +152,7 @@ namespace Eadent.Identity.Access
             return responseDto;
         }
 
-        public UserSessionSignOutResponseDto SignOutUser(string userWebApiSessionToken, string ipAddress)
+        public UserSessionSignOutResponseDto SignOutUser(string userWebApiSessionToken, string userIpAddress)
         {
             var responseDto = new UserSessionSignOutResponseDto();
 
@@ -183,7 +183,7 @@ namespace Eadent.Identity.Access
                     }
                     else
                     {
-                        SignOutStatus signOutStatusId = EadentUserIdentity.SignOutUser(userSessionEntity.UserSessionToken, ipAddress);
+                        SignOutStatus signOutStatusId = EadentUserIdentity.SignOutUser(userSessionEntity.UserSessionToken, userIpAddress);
 
                         switch (signOutStatusId)
                         {

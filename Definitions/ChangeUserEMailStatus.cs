@@ -13,8 +13,7 @@
         InvalidPassword = 12,
         InvalidOldEMailAddress = 13,
         InvalidNewEMailAddress = 14,
-        UserDoesNotOwnOldEMailAddress = 15,
-        NewEMailAddressAlreadyInUse = 16,
+        NewEMailAddressAlreadyInUse = 15,
         SessionSoftDeleted = 100
     }
 }

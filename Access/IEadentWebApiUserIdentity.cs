@@ -5,10 +5,10 @@ namespace Eadent.Identity.Access
 {
     public interface IEadentWebApiUserIdentity
     {
-        UserSessionSignInResponseDto SignInUser(UserSessionSignInRequestDto requestDto, string ipAddress);
+        UserSessionSignInResponseDto SignInUser(UserSessionSignInRequestDto requestDto, string userIpAddress);
 
-        UserCheckAndUpdateSessionResponseDto CheckAndUpdateUserSession(string userWebApiSessionToken, UserCheckAndUpdateSessionRequestDto requestDto, string ipAddress);
+        UserCheckAndUpdateSessionResponseDto CheckAndUpdateUserSession(string userWebApiSessionToken, UserCheckAndUpdateSessionRequestDto requestDto, string userIpAddress);
 
-        UserSessionSignOutResponseDto SignOutUser(string userWebApiSessionToken, string ipAddress);
+        UserSessionSignOutResponseDto SignOutUser(string userWebApiSessionToken, string userIpAddress);
     }
 }

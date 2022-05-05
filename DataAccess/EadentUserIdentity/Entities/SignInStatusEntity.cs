@@ -17,9 +17,11 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Entities
         [Key]
         public SignInStatus SignInStatusId { get; set; }
 
-        public string Name { get; set; }
+        public string Status { get; set; }
 
         public DateTime CreatedDateTimeUtc { get; set; }
+
+        public DateTime? LastUpdatedDateTimeUtc { get; set; }
 
         public virtual ICollection<UserSessionEntity> UserSignIns { get; set; }
     }

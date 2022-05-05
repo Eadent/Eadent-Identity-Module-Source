@@ -22,9 +22,11 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Entities
 
         public short RoleLevel { get; set; }
 
-        public string Name { get; set; }
+        public string Role { get; set; }
 
         public DateTime CreatedDateTimeUtc { get; set; }
+
+        public DateTime? LastUpdatedDateTimeUtc { get; set; }
 
         public virtual ICollection<UserRoleEntity> UserRoles { get; set; }
     }

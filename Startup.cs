@@ -22,7 +22,6 @@ namespace Eadent.Identity
             services.AddTransient<IRolesRepository, RolesRepository>();
             services.AddTransient<ISignInStatusesRepository, SignInStatusesRepository>();
             services.AddTransient<IUserAuditsRepository, UserAuditsRepository>();
-            services.AddTransient<IUserEMailsRepository, UserEMailsRepository>();
             services.AddTransient<IUserRolesRepository, UserRolesRepository>();
             services.AddTransient<IUserSignInsRepository, UserSignInsRepository>();
             services.AddTransient<IUsersRepository, UsersRepository>();

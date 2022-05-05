@@ -11,6 +11,8 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Entities
         [Key]
         public long UserSessionId { get; set; }
 
+        public SignInType UserSessionSignInTypeId { get; set; }
+
         public string UserSessionToken { get; set; }
 
         public Guid UserSessionGuid { get; set; }
@@ -21,7 +23,9 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Entities
 
         public string EMailAddress { get; set; }
 
-        public string IpAddress { get; set; }
+        public string MobilePhoneNumber { get; set; }
+
+        public string UserIpAddress { get; set; }
 
         public SignInStatus SignInStatusId { get; set; }
 
@@ -29,7 +33,7 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Entities
 
         public DateTime CreatedDateTimeUtc { get; set; }
 
-        public DateTime LastAccessedDateTimeUtc { get; set; }
+        public DateTime LastUpdatedDateTimeUtc { get; set; }
 
         public virtual SignInStatusEntity SignInStatus { get; set; }
 

@@ -3,16 +3,16 @@ using Eadent.Identity.DataAccess.EadentUserIdentity.Databases;
 using Eadent.Identity.DataAccess.EadentUserIdentity.Entities;
 using Eadent.Identity.DataAccess.EadentUserIdentity.Repositories;
 using Eadent.Identity.Definitions;
+using Eadent.Identity.Helpers;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Security.Cryptography;
 using System.Text;
-using Eadent.Identity.Helpers;
-using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Logging;
 using PasswordVersion = Eadent.Identity.Definitions.PasswordVersion;
 using Role = Eadent.Identity.Definitions.Role;
 using SignInStatus = Eadent.Identity.Definitions.SignInStatus;
@@ -28,8 +28,6 @@ namespace Eadent.Identity.Access
 
         private IEadentUserIdentityDatabase EadentUserIdentityDatabase { get; }
 
-        private IUserEMailsRepository UserEMailsRepository { get; }
-
         private IUsersRepository UsersRepository { get; }
 
         private IUserRolesRepository UserRolesRepository { get; }
@@ -42,14 +40,13 @@ namespace Eadent.Identity.Access
 
         public EadentUserIdentity(ILogger<EadentUserIdentity> logger, IConfiguration configuration,
             IEadentUserIdentityDatabase eadentUserIdentityDatabase, 
-            IUserEMailsRepository userEMailsRepository, IUsersRepository usersRepository,
+            IUsersRepository usersRepository,
             IUserRolesRepository userRolesRepository, IUserAuditsRepository userAuditsRepository,
             IUserSessionsRepository userSessionsRepository, IUserPasswordResetsRepository userPasswordResetsRepository)
         {
             Logger = logger;
             EadentIdentitySettings = configuration.GetSection(EadentIdentitySettings.SectionName).Get<EadentIdentitySettings>();
             EadentUserIdentityDatabase = eadentUserIdentityDatabase;
-            UserEMailsRepository = userEMailsRepository;
             UsersRepository = usersRepository;
             UserRolesRepository = userRolesRepository;
             UserAuditsRepository = userAuditsRepository;
@@ -83,52 +80,56 @@ namespace Eadent.Identity.Access
             return hashedPassword;
         }
 
-        private UserEntity CreateUser(string displayName, string plainTextPassword, DateTime utcNow)
+        private UserEntity CreateUser(int createdByApplicationId, string userGuidString, string displayName, string eMailAddress, string mobilePhoneNumber, string plainTextPassword, DateTime utcNow)
         {
-            var userGuid = Guid.NewGuid();
+            Guid? userGuid = null;
 
-            var saltGuid = Guid.NewGuid();
+            if (!string.IsNullOrWhiteSpace(userGuidString))
+            {
+                if (Guid.TryParse(userGuidString, out var parsedUserGuid))
+                    userGuid = parsedUserGuid;
+            }
+
+            if (userGuid == null)
+                userGuid = Guid.NewGuid();
+
+            var passwordSaltGuid = Guid.NewGuid();
 
             var passwordHashIterationCount = EadentIdentitySettings.UserIdentity.Security.Hasher.IterationCount;
             var passwordHashNumDerivedKeyBytes = EadentIdentitySettings.UserIdentity.Security.Hasher.NumDerivedKeyBytes;
 
             var userEntity = new UserEntity()
             {
-                UserGuid = userGuid,
+                UserGuid = userGuid.GetValueOrDefault(),
                 UserStatusId = UserStatus.Enabled,
+                CreatedByApplicationId = createdByApplicationId,
+                SignInMultiFactorAuthenticationTypeId = SignInMultiFactorAuthenticationType.EMail,
                 DisplayName = displayName,
+                EMailAddress = eMailAddress,
+                EMailAddressConfirmationStatusId = ConfirmationStatus.NotConfirmed,
+                EMailAddressConfirmationCode = null,
+                MobilePhoneNumber = mobilePhoneNumber,
+                MobilePhoneNumberConfirmationStatusId = ConfirmationStatus.NotConfirmed,
+                MobilePhoneNumberConfirmationCode = null,
                 PasswordVersionId = PasswordVersion.HMACSHA512,
                 PasswordHashIterationCount = passwordHashIterationCount,
                 PasswordHashNumDerivedKeyBytes = passwordHashNumDerivedKeyBytes,
-                SaltGuid = saltGuid,
-                Password = HashUserPasswordHMACSHA512(plainTextPassword, passwordHashIterationCount, passwordHashNumDerivedKeyBytes, saltGuid),
-                PasswordDateTimeUtc = utcNow,
+                PasswordSaltGuid = passwordSaltGuid,
+                Password = HashUserPasswordHMACSHA512(plainTextPassword, passwordHashIterationCount, passwordHashNumDerivedKeyBytes, passwordSaltGuid),
+                PasswordLastUpdatedDateTimeUtc = utcNow,
                 ChangePasswordNextSignIn = false,
                 SignInErrorCount = 0,
                 SignInErrorLimit = EadentIdentitySettings.UserIdentity.Account.SignInErrorLimit,
                 SignInLockOutDurationSeconds = EadentIdentitySettings.UserIdentity.Account.SignInLockOutDurationSeconds,
                 SignInLockOutDateTimeUtc = null,
-                CreatedDateTimeUtc = utcNow
+                CreatedDateTimeUtc = utcNow,
+                LastUpdatedDateTimeUtc = null
             };
 
             UsersRepository.Create(userEntity);
             UsersRepository.SaveChanges();
 
             return userEntity;
-        }
-
-        private UserEMailEntity CreateUserEMail(UserEntity userEntity, string eMailAddress, DateTime utcNow)
-        {
-            var userEMailEntity = new UserEMailEntity()
-            {
-                UserId = userEntity.UserId,
-                EMailAddress = eMailAddress,
-                CreatedDateTimeUtc = utcNow
-            };
-
-            UserEMailsRepository.Create(userEMailEntity);
-
-            return userEMailEntity;
         }
 
         private UserRoleEntity CreateUserRole(UserEntity userEntity, Role roleId, DateTime utcNow)
@@ -145,15 +146,15 @@ namespace Eadent.Identity.Access
             return userRoleEntity;
         }
 
-        private UserAuditEntity CreateUserAudit(long? userId, string description, string oldValue, string newValue, string ipAddress, decimal? googleReCaptchaScore, DateTime utcNow)
+        private UserAuditEntity CreateUserAudit(long? userId, string description, string oldValue, string newValue, string userIpAddress, decimal? googleReCaptchaScore, DateTime utcNow)
         {
             var userAuditEntity = new UserAuditEntity()
             {
                 UserId = userId,
-                Description = description,
+                Activity = description,
                 OldValue = oldValue,
                 NewValue = newValue,
-                IpAddress = ipAddress,
+                UserIpAddress = userIpAddress,
                 GoogleReCaptchaScore = googleReCaptchaScore,
                 CreatedDateTimeUtc = utcNow
             };
@@ -163,20 +164,22 @@ namespace Eadent.Identity.Access
             return userAuditEntity;
         }
 
-        private UserSessionEntity CreateUserSession(UserEntity userEntity, string userSessionToken, UserSessionStatus userSessionStatusId, string eMailAddress, string ipAddress, SignInStatus signInStatusId, DateTime utcNow)
+        private UserSessionEntity CreateUserSession(SignInType signInTypeId, UserEntity userEntity, string userSessionToken, UserSessionStatus userSessionStatusId, string eMailAddress, string userIpAddress, SignInStatus signInStatusId, DateTime utcNow)
         {
             var userSessionEntity = new UserSessionEntity()
             {
+                UserSessionSignInTypeId = signInTypeId,
                 UserSessionToken = userSessionToken,
                 UserSessionGuid = Guid.NewGuid(),
                 UserSessionStatusId = userSessionStatusId,
                 UserSessionExpirationDurationSeconds = EadentIdentitySettings.UserIdentity.Account.SessionExpirationDurationSeconds,
                 EMailAddress = eMailAddress,
-                IpAddress = ipAddress,
+                MobilePhoneNumber = userEntity?.MobilePhoneNumber,
+                UserIpAddress = userIpAddress,
                 SignInStatusId = signInStatusId,
                 UserId = userEntity?.UserId,
                 CreatedDateTimeUtc = utcNow,
-                LastAccessedDateTimeUtc = utcNow
+                LastUpdatedDateTimeUtc = utcNow
             };
 
             UserSessionsRepository.Create(userSessionEntity);
@@ -264,16 +267,16 @@ namespace Eadent.Identity.Access
             return (userSessionStatusId, signInStatusId, previousUserSignInDateTimeUtc);
         }
 
-        private UserPasswordResetEntity CreatePasswordReset(string resetToken, string eMailAddress, string ipAddress, UserEntity userEntity, DateTime utcNow)
+        private UserPasswordResetEntity CreatePasswordReset(string resetToken, string eMailAddress, string userIpAddress, UserEntity userEntity, DateTime utcNow)
         {
             var passwordResetEntity = new UserPasswordResetEntity()
             {
                 ResetToken = resetToken,
                 PasswordResetStatusId = PasswordResetStatus.Open,
-                RequestedDateTimeUtc = utcNow,
-                ExpirationDurationSeconds = EadentIdentitySettings.UserIdentity.Account.PasswordResetExpirationDurationSeconds,
+                ResetTokenRequestedDateTimeUtc = utcNow,
+                ResetTokenExpirationDurationSeconds = EadentIdentitySettings.UserIdentity.Account.PasswordResetExpirationDurationSeconds,
                 EMailAddress = eMailAddress,
-                IpAddress  = ipAddress,
+                UserIpAddress = userIpAddress,
                 UserId = userEntity?.UserId
             };
 
@@ -357,9 +360,6 @@ namespace Eadent.Identity.Access
                 var sql = $"DELETE FROM {EadentUserIdentityDatabase.DatabaseSchema}.UserAudits WHERE UserId = @UserId;";
                 rowCount = EadentUserIdentityDatabase.ExecuteSqlRaw(sql, parameters);
 
-                sql = $"DELETE FROM {EadentUserIdentityDatabase.DatabaseSchema}.UserEMails WHERE UserId = @UserId;";
-                rowCount = EadentUserIdentityDatabase.ExecuteSqlRaw(sql, parameters);
-
                 sql = $"DELETE FROM {EadentUserIdentityDatabase.DatabaseSchema}.UserPasswordResets WHERE UserId = @UserId;";
                 rowCount = EadentUserIdentityDatabase.ExecuteSqlRaw(sql, parameters);
 
@@ -384,9 +384,10 @@ namespace Eadent.Identity.Access
             return deleteUserStatusId;
         }
 
-        public (RegisterUserStatus registerStatusId, UserEntity userEntity) RegisterUser(Role roleId, string eMailAddress, string displayName, string plainTextPassword, string ipAddress, decimal googleReCaptchaScore)
+        public (RegisterUserStatus registerStatusId, UserEntity userEntity) RegisterUser(int createdByApplicationId, string userGuidString, Role roleId, string displayName, string eMailAddress, string mobilePhoneNumber, string plainTextPassword, string userIpAddress, decimal googleReCaptchaScore)
         {
             // TODO: Validate E-Mail Address.
+            // TODO: Validate Mpbile Phone Number.
             // TODO: Validate Plain Text Password.
 
             var registerStatusId = RegisterUserStatus.Error;
@@ -399,25 +400,23 @@ namespace Eadent.Identity.Access
 
                 EadentUserIdentityDatabase.BeginTransaction();
 
-                UserEMailEntity userEMailEntity = UserEMailsRepository.GetFirstOrDefaultIncludeUserAndRoles(eMailAddress);
+                userEntity = UsersRepository.GetFirstOrDefaultByEMailAddressIncludeRoles(eMailAddress);
 
-                if (userEMailEntity != null)
+                if (userEntity != null)
                 {
                     registerStatusId = RegisterUserStatus.UserAlreadyExists;
-                    userEntity = userEMailEntity.User;
                 }
                 else
                 {
-                    userEntity = CreateUser(displayName, plainTextPassword, utcNow);
-                    userEMailEntity = CreateUserEMail(userEntity, eMailAddress, utcNow);
+                    userEntity = CreateUser(createdByApplicationId, userGuidString, displayName, eMailAddress, mobilePhoneNumber, plainTextPassword, utcNow);
                     CreateUserRole(userEntity, roleId, utcNow);
 
                     registerStatusId = RegisterUserStatus.Success;
                 }
 
-                Logger.LogInformation($"RegisterStatusId: {registerStatusId} : EMailAddress: {eMailAddress} : IpAddress: {ipAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
+                Logger.LogInformation($"RegisterStatusId: {registerStatusId} : EMailAddress: {eMailAddress} : MobilePhoneNUmber: {mobilePhoneNumber} : UserIpAddress: {userIpAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
 
-                CreateUserAudit(userEntity.UserId, $"User Register. RegisterStatusId: {registerStatusId}", null, $"E-Mail Address: {eMailAddress}", ipAddress, googleReCaptchaScore, utcNow);
+                CreateUserAudit(userEntity.UserId, $"User Register. RegisterStatusId: {registerStatusId}", null, $"Created By Application Id: {createdByApplicationId} : E-Mail Address: {eMailAddress} : Mobile Phone Number: {mobilePhoneNumber}", userIpAddress, googleReCaptchaScore, utcNow);
 
                 EadentUserIdentityDatabase.SaveChanges();
                 EadentUserIdentityDatabase.CommitTransaction();
@@ -434,7 +433,7 @@ namespace Eadent.Identity.Access
             return (registerStatusId, userEntity);
         }
 
-        public (SignInStatus signInStatusId, UserSessionEntity userSessionEntity, DateTime? previousUserSignInDateTimeUtc) SignInUser(string eMailAddress, string plainTextPassword, string ipAddress, decimal? googleReCaptchaScore)
+        public (SignInStatus signInStatusId, UserSessionEntity userSessionEntity, DateTime? previousUserSignInDateTimeUtc) SignInUser(SignInType signInTypeId, string eMailAddress, string plainTextPassword, string userIpAddress, decimal? googleReCaptchaScore)
         {
             var signInStatusId = SignInStatus.Error;
 
@@ -457,11 +456,11 @@ namespace Eadent.Identity.Access
 
                 EadentUserIdentityDatabase.BeginTransaction();
 
-                UserEMailEntity userEMailEntity = UserEMailsRepository.GetFirstOrDefaultIncludeUserAndRoles(eMailAddress);
+                userEntity = UsersRepository.GetFirstOrDefaultByEMailAddressIncludeRoles(eMailAddress);
 
                 string hashedPassword = null;
 
-                if (userEMailEntity == null)
+                if (userEntity == null)
                 {
                     // Fake a Hashed Password.
                     hashedPassword = HashUserPasswordHMACSHA512(plainTextPassword, passwordHashIterationCount, passwordHashNumDerivedKeyBytes, Guid.NewGuid());
@@ -470,13 +469,11 @@ namespace Eadent.Identity.Access
                 }
                 else
                 {
-                    userEntity = userEMailEntity.User;
-
                     switch (userEntity.PasswordVersionId)
                     {
                         case PasswordVersion.HMACSHA512:
 
-                            hashedPassword = HashUserPasswordHMACSHA512(plainTextPassword, userEntity.PasswordHashIterationCount, userEntity.PasswordHashNumDerivedKeyBytes, userEntity.SaltGuid);
+                            hashedPassword = HashUserPasswordHMACSHA512(plainTextPassword, userEntity.PasswordHashIterationCount, userEntity.PasswordHashNumDerivedKeyBytes, userEntity.PasswordSaltGuid);
                             break;
 
                         default:
@@ -515,11 +512,11 @@ namespace Eadent.Identity.Access
                     }
                 }
 
-                userSessionEntity = CreateUserSession(userEntity, userSessionToken, userSessionStatusId, eMailAddress, ipAddress, signInStatusId, utcNow);
+                userSessionEntity = CreateUserSession(signInTypeId, userEntity, userSessionToken, userSessionStatusId, eMailAddress, userIpAddress, signInStatusId, utcNow);
 
-                Logger.LogInformation($"SignInStatusId: {signInStatusId} : EMailAddress: {eMailAddress} : IpAddress: {ipAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
+                Logger.LogInformation($"SignInTypeId: {signInTypeId} : SignInStatusId: {signInStatusId} : EMailAddress: {eMailAddress} : UserIpAddress: {userIpAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
 
-                CreateUserAudit(userEntity?.UserId, $"User Sign In. SignInStatusId: {signInStatusId}", null, $"E-Mail Address: {eMailAddress}", ipAddress, googleReCaptchaScore, utcNow);
+                CreateUserAudit(userEntity?.UserId, $"User Sign In. SignInTypeId: {signInTypeId} : SignInStatusId: {signInStatusId}", null, $"E-Mail Address: {eMailAddress}", userIpAddress, googleReCaptchaScore, utcNow);
 
                 EadentUserIdentityDatabase.SaveChanges();
                 EadentUserIdentityDatabase.CommitTransaction();
@@ -534,7 +531,7 @@ namespace Eadent.Identity.Access
             return (signInStatusId, userSessionEntity, previousUserSignInDateTimeUtc);
         }
 
-        public (SessionStatus sessionStatusId, UserSessionEntity userSessionEntity) CheckAndUpdateUserSession(string userSessionToken, string ipAddress)
+        public (SessionStatus sessionStatusId, UserSessionEntity userSessionEntity) CheckAndUpdateUserSession(string userSessionToken, string userIpAddress)
         {
             var sessionStatusId = SessionStatus.Error;
 
@@ -561,7 +558,7 @@ namespace Eadent.Identity.Access
 
                         case UserSessionStatus.SignedIn:
 
-                            if (userSessionEntity.LastAccessedDateTimeUtc.AddSeconds(userSessionEntity.UserSessionExpirationDurationSeconds) <= utcNow)
+                            if (userSessionEntity.LastUpdatedDateTimeUtc.AddSeconds(userSessionEntity.UserSessionExpirationDurationSeconds) <= utcNow)
                             {
                                 userSessionEntity.UserSessionStatusId = UserSessionStatus.TimedOutExpired;
 
@@ -572,7 +569,7 @@ namespace Eadent.Identity.Access
                                 sessionStatusId = SessionStatus.SignedIn;
                             }
 
-                            userSessionEntity.LastAccessedDateTimeUtc = utcNow;
+                            userSessionEntity.LastUpdatedDateTimeUtc = utcNow;
                             UserSessionsRepository.Update(userSessionEntity);
                             break;
 
@@ -610,7 +607,7 @@ namespace Eadent.Identity.Access
             return (sessionStatusId, userSessionEntity);
         }
 
-        public (ChangeUserEMailStatus changeUserEMailStatusId, UserSessionEntity userSessionEntity) ChangeUserEMailAddress(string userSessionToken, string plainTextPassword, string oldEMailAddress, string newEMailAddress, string ipAddress, decimal googleReCaptchaScore)
+        public (ChangeUserEMailStatus changeUserEMailStatusId, UserSessionEntity userSessionEntity) ChangeUserEMailAddress(string userSessionToken, string plainTextPassword, string oldEMailAddress, string newEMailAddress, string userIpAddress, decimal googleReCaptchaScore)
         {
             // TODO: Validate New E-Mail Address.
 
@@ -652,7 +649,7 @@ namespace Eadent.Identity.Access
                             {
                                 case PasswordVersion.HMACSHA512:
 
-                                    hashedPassword = HashUserPasswordHMACSHA512(plainTextPassword, userEntity.PasswordHashIterationCount, userEntity.PasswordHashNumDerivedKeyBytes, userEntity.SaltGuid);
+                                    hashedPassword = HashUserPasswordHMACSHA512(plainTextPassword, userEntity.PasswordHashIterationCount, userEntity.PasswordHashNumDerivedKeyBytes, userEntity.PasswordSaltGuid);
                                     break;
 
                                 default:
@@ -668,30 +665,28 @@ namespace Eadent.Identity.Access
                             }
                             else
                             {
-                                var userEMailEntity = UserEMailsRepository.GetFirstOrDefaultIncludeUserAndRoles(oldEMailAddress);
+                                userEntity = UsersRepository.GetFirstOrDefaultByEMailAddressIncludeRoles(oldEMailAddress);
 
-                                if (userEMailEntity == null)
+                                if (userEntity == null)
                                 {
                                     changeUserEMailStatusId = ChangeUserEMailStatus.InvalidOldEMailAddress;
                                 }
-                                else if (userEntity.UserGuid != userEMailEntity.User.UserGuid)
-                                {
-                                    changeUserEMailStatusId = ChangeUserEMailStatus.UserDoesNotOwnOldEMailAddress;
-                                }
                                 else
                                 {
-                                    if (userEMailEntity.EMailAddress == newEMailAddress)
+                                    if (userEntity.EMailAddress == newEMailAddress)
                                     {
                                         changeUserEMailStatusId = ChangeUserEMailStatus.Success;
                                     }
                                     else
                                     {
-                                        userEMailEntity.EMailAddress = newEMailAddress;
+                                        userEntity.EMailAddress = newEMailAddress;
+                                        userEntity.EMailAddressConfirmationStatusId = ConfirmationStatus.NotConfirmed;
+                                        userEntity.EMailAddressConfirmationCode = null;
 
-                                        UserEMailsRepository.Update(userEMailEntity);
+                                        UsersRepository.Update(userEntity);
 
                                         userSessionEntity.UserSessionStatusId = UserSessionStatus.SignedOut;
-                                        userSessionEntity.LastAccessedDateTimeUtc = utcNow;
+                                        userSessionEntity.LastUpdatedDateTimeUtc = utcNow;
 
                                         UserSessionsRepository.Update(userSessionEntity);
 
@@ -723,9 +718,9 @@ namespace Eadent.Identity.Access
                     }
                 }
 
-                Logger.LogInformation($"ChangeUserEMailStatusId: {changeUserEMailStatusId} : OldEMailAddress: {oldEMailAddress} : NewEMailAddress: {newEMailAddress} : IpAddress: {ipAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
+                Logger.LogInformation($"ChangeUserEMailStatusId: {changeUserEMailStatusId} : OldEMailAddress: {oldEMailAddress} : NewEMailAddress: {newEMailAddress} : UserIpAddress: {userIpAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
 
-                CreateUserAudit(userEntity?.UserId, $"User Change E-Mail Address. ChangeUserEMailStatusId: {changeUserEMailStatusId}", $"Old E-Mail Address: {oldEMailAddress}", $"New E-Mail Address: {newEMailAddress}", ipAddress, googleReCaptchaScore, utcNow);
+                CreateUserAudit(userEntity?.UserId, $"User Change E-Mail Address. ChangeUserEMailStatusId: {changeUserEMailStatusId}", $"Old E-Mail Address: {oldEMailAddress}", $"New E-Mail Address: {newEMailAddress}", userIpAddress, googleReCaptchaScore, utcNow);
 
                 EadentUserIdentityDatabase.SaveChanges();
             }
@@ -739,7 +734,7 @@ namespace Eadent.Identity.Access
             return (changeUserEMailStatusId, userSessionEntity);
         }
 
-        public (ChangeUserPasswordStatus changeUserPasswordStatusId, UserSessionEntity userSessionEntity) ChangeUserPassword(string userSessionToken, string oldPlainTextPassword, string newPlainTextPassword, string ipAddress, decimal googleReCaptchaScore)
+        public (ChangeUserPasswordStatus changeUserPasswordStatusId, UserSessionEntity userSessionEntity) ChangeUserPassword(string userSessionToken, string oldPlainTextPassword, string newPlainTextPassword, string userIpAddress, decimal googleReCaptchaScore)
         {
             // TODO: Validate New Plain Text Password.
 
@@ -781,7 +776,7 @@ namespace Eadent.Identity.Access
                             {
                                 case PasswordVersion.HMACSHA512:
 
-                                    hashedPassword = HashUserPasswordHMACSHA512(oldPlainTextPassword, userEntity.PasswordHashIterationCount, userEntity.PasswordHashNumDerivedKeyBytes, userEntity.SaltGuid);
+                                    hashedPassword = HashUserPasswordHMACSHA512(oldPlainTextPassword, userEntity.PasswordHashIterationCount, userEntity.PasswordHashNumDerivedKeyBytes, userEntity.PasswordSaltGuid);
                                     break;
 
                                 default:
@@ -797,16 +792,16 @@ namespace Eadent.Identity.Access
                             }
                             else
                             {
-                                string newHashedPassword = HashUserPasswordHMACSHA512(newPlainTextPassword, userEntity.PasswordHashIterationCount, userEntity.PasswordHashNumDerivedKeyBytes, userEntity.SaltGuid);
+                                string newHashedPassword = HashUserPasswordHMACSHA512(newPlainTextPassword, userEntity.PasswordHashIterationCount, userEntity.PasswordHashNumDerivedKeyBytes, userEntity.PasswordSaltGuid);
 
                                 userEntity.PasswordVersionId = PasswordVersion.HMACSHA512;
                                 userEntity.Password = newHashedPassword;
-                                userEntity.PasswordDateTimeUtc = utcNow;
+                                userEntity.PasswordLastUpdatedDateTimeUtc = utcNow;
 
                                 UsersRepository.Update(userEntity);
 
                                 userSessionEntity.UserSessionStatusId = UserSessionStatus.SignedOut;
-                                userSessionEntity.LastAccessedDateTimeUtc = utcNow;
+                                userSessionEntity.LastUpdatedDateTimeUtc = utcNow;
 
                                 UserSessionsRepository.Update(userSessionEntity);
 
@@ -836,9 +831,9 @@ namespace Eadent.Identity.Access
                     }
                 }
 
-                Logger.LogInformation($"ChangeUserPasswordStatusId: {changeUserPasswordStatusId} : IpAddress: {ipAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
+                Logger.LogInformation($"ChangeUserPasswordStatusId: {changeUserPasswordStatusId} : UserIpAddress: {userIpAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
 
-                CreateUserAudit(userEntity?.UserId, $"User Change Password. ChangeUserPasswordStatusId: {changeUserPasswordStatusId}", null, null, ipAddress, googleReCaptchaScore, utcNow);
+                CreateUserAudit(userEntity?.UserId, $"User Change Password. ChangeUserPasswordStatusId: {changeUserPasswordStatusId}", null, null, userIpAddress, googleReCaptchaScore, utcNow);
 
                 EadentUserIdentityDatabase.SaveChanges();
             }
@@ -852,7 +847,7 @@ namespace Eadent.Identity.Access
             return (changeUserPasswordStatusId, userSessionEntity);
         }
 
-        public SignOutStatus SignOutUser(string userSessionToken, string ipAddress)
+        public SignOutStatus SignOutUser(string userSessionToken, string userIpAddress)
         {
             var signOutStatusId = SignOutStatus.Error;
 
@@ -879,7 +874,7 @@ namespace Eadent.Identity.Access
                         case UserSessionStatus.TimedOutExpired:
 
                             userSessionEntity.UserSessionStatusId = UserSessionStatus.SignedOut;
-                            userSessionEntity.LastAccessedDateTimeUtc = utcNow;
+                            userSessionEntity.LastUpdatedDateTimeUtc = utcNow;
 
                             UserSessionsRepository.Update(userSessionEntity);
 
@@ -903,9 +898,9 @@ namespace Eadent.Identity.Access
                     }
                 }
 
-                Logger.LogInformation($"SignOutStatusId: {signOutStatusId} : IpAddress: {ipAddress}");
+                Logger.LogInformation($"SignOutStatusId: {signOutStatusId} : UserIpAddress: {userIpAddress}");
 
-                CreateUserAudit(userSessionEntity?.UserId, $"User Sign Out. SignOutStatusId: {signOutStatusId}", null, null, ipAddress, null, utcNow);
+                CreateUserAudit(userSessionEntity?.UserId, $"User Sign Out. SignOutStatusId: {signOutStatusId}", null, null, userIpAddress, null, utcNow);
 
                 EadentUserIdentityDatabase.SaveChanges();
             }
@@ -919,7 +914,7 @@ namespace Eadent.Identity.Access
             return signOutStatusId;
         }
 
-        public DeleteUserStatus SoftDeleteUser(string userSessionToken, Guid userGuid, string ipAddress)
+        public DeleteUserStatus SoftDeleteUser(string userSessionToken, Guid userGuid, string userIpAddress)
         {
             var deleteUserStatusId = DeleteUserStatus.Error;
 
@@ -1002,9 +997,9 @@ namespace Eadent.Identity.Access
                     }
                 }
 
-                Logger.LogInformation($"DeleteUserStatusId: {deleteUserStatusId} : InitiatingUserId: {initiatingUserId} - TargetUserId: {targetUserId} : IpAddress: {ipAddress}");
+                Logger.LogInformation($"DeleteUserStatusId: {deleteUserStatusId} : InitiatingUserId: {initiatingUserId} - TargetUserId: {targetUserId} : UserIpAddress: {userIpAddress}");
 
-                CreateUserAudit(initiatingUserId, $"User Soft Delete. DeleteUserStatusId: {deleteUserStatusId}", null, $"Initiating User Id: {initiatingUserId} - Target User Id: {targetUserId}", ipAddress, null, utcNow);
+                CreateUserAudit(initiatingUserId, $"User Soft Delete. DeleteUserStatusId: {deleteUserStatusId}", null, $"Initiating User Id: {initiatingUserId} - Target User Id: {targetUserId}", userIpAddress, null, utcNow);
 
                 EadentUserIdentityDatabase.SaveChanges();
                 EadentUserIdentityDatabase.CommitTransaction();
@@ -1021,7 +1016,7 @@ namespace Eadent.Identity.Access
             return deleteUserStatusId;
         }
 
-        public DeleteUserStatus SoftUnDeleteUser(string userSessionToken, Guid userGuid, string ipAddress)
+        public DeleteUserStatus SoftUnDeleteUser(string userSessionToken, Guid userGuid, string userIpAddress)
         {
             var deleteUserStatusId = DeleteUserStatus.Error;
 
@@ -1101,9 +1096,9 @@ namespace Eadent.Identity.Access
                     }
                 }
 
-                Logger.LogInformation($"DeleteUserStatusId: {deleteUserStatusId} : InitiatingUserId: {initiatingUserId} - TargetUserId: {targetUserId} : IpAddress: {ipAddress}");
+                Logger.LogInformation($"DeleteUserStatusId: {deleteUserStatusId} : InitiatingUserId: {initiatingUserId} - TargetUserId: {targetUserId} : UserIpAddress: {userIpAddress}");
 
-                CreateUserAudit(initiatingUserId, $"User Soft Un-Delete. DeleteUserStatusId: {deleteUserStatusId}", null, $"Initiating User Id: {initiatingUserId} - Target User Id: {targetUserId}", ipAddress, null, utcNow);
+                CreateUserAudit(initiatingUserId, $"User Soft Un-Delete. DeleteUserStatusId: {deleteUserStatusId}", null, $"Initiating User Id: {initiatingUserId} - Target User Id: {targetUserId}", userIpAddress, null, utcNow);
 
                 EadentUserIdentityDatabase.SaveChanges();
                 EadentUserIdentityDatabase.CommitTransaction();
@@ -1120,7 +1115,7 @@ namespace Eadent.Identity.Access
             return deleteUserStatusId;
         }
 
-        public DeleteUserStatus HardDeleteUser(string userSessionToken, Guid userGuid, string ipAddress)
+        public DeleteUserStatus HardDeleteUser(string userSessionToken, Guid userGuid, string userIpAddress)
         {
             var deleteUserStatusId = DeleteUserStatus.Error;
 
@@ -1200,9 +1195,9 @@ namespace Eadent.Identity.Access
                     }
                 }
 
-                Logger.LogInformation($"DeleteUserStatusId: {deleteUserStatusId} : InitiatingUserId: {initiatingUserId} - TargetUserId: {targetUserId} : IpAddress: {ipAddress}");
+                Logger.LogInformation($"DeleteUserStatusId: {deleteUserStatusId} : InitiatingUserId: {initiatingUserId} - TargetUserId: {targetUserId} : UserIpAddress: {userIpAddress}");
 
-                CreateUserAudit(initiatingUserId, $"User Hard Delete. DeleteUserStatusId: {deleteUserStatusId}", null, $"Initiating User Id: {initiatingUserId} - Target User Id: {targetUserId}", ipAddress, null, utcNow);
+                CreateUserAudit(initiatingUserId, $"User Hard Delete. DeleteUserStatusId: {deleteUserStatusId}", null, $"Initiating User Id: {initiatingUserId} - Target User Id: {targetUserId}", userIpAddress, null, utcNow);
 
                 EadentUserIdentityDatabase.SaveChanges();
                 EadentUserIdentityDatabase.CommitTransaction();
@@ -1219,7 +1214,7 @@ namespace Eadent.Identity.Access
             return deleteUserStatusId;
         }
 
-        public (UserPasswordResetRequestStatus passwordResetRequestStatusId, string resetToken, UserEntity userEntity) BeginUserPasswordReset(string eMailAddress, string ipAddress, decimal googleReCaptchaScore)
+        public (UserPasswordResetRequestStatus passwordResetRequestStatusId, string resetToken, UserEntity userEntity) BeginUserPasswordReset(string eMailAddress, string userIpAddress, decimal googleReCaptchaScore)
         {
             var passwordResetRequestStatusId = UserPasswordResetRequestStatus.Error;
 
@@ -1233,22 +1228,20 @@ namespace Eadent.Identity.Access
             {
                 resetToken = HashSHA512($"{EadentIdentitySettings.UserIdentity.Security.Hasher.SiteSalt}-{Guid.NewGuid()}");
 
-                var userEMailEntity = UserEMailsRepository.GetFirstOrDefaultIncludeUserAndRoles(eMailAddress);
+                userEntity = UsersRepository.GetFirstOrDefaultByEMailAddressIncludeRoles(eMailAddress);
 
-                if (userEMailEntity == null)
+                if (userEntity == null)
                 {
                     passwordResetRequestStatusId = UserPasswordResetRequestStatus.InvalidEMailAddress;
                 }
                 else
                 {
-                    userEntity = userEMailEntity.User;
-
                     switch (userEntity.UserStatusId)
                     {
                         case UserStatus.Enabled:
                         case UserStatus.SignInLockedOut:
 
-                            CreatePasswordReset(resetToken, eMailAddress, ipAddress, userEntity, utcNow);
+                            CreatePasswordReset(resetToken, eMailAddress, userIpAddress, userEntity, utcNow);
 
                             passwordResetRequestStatusId = UserPasswordResetRequestStatus.Success;
                             break;
@@ -1265,9 +1258,9 @@ namespace Eadent.Identity.Access
                     }
                 }
 
-                Logger.LogInformation($"PasswordResetRequestStatusId: {passwordResetRequestStatusId} : EMailAddress: {eMailAddress} : IpAddress: {ipAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
+                Logger.LogInformation($"PasswordResetRequestStatusId: {passwordResetRequestStatusId} : EMailAddress: {eMailAddress} : UserIpAddress: {userIpAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
 
-                CreateUserAudit(userEntity?.UserId, $"Password Reset Begin Request. PasswordResetRequestStatusId: {passwordResetRequestStatusId}", null, $"E-Mail Address: {eMailAddress}", ipAddress, googleReCaptchaScore, utcNow);
+                CreateUserAudit(userEntity?.UserId, $"Password Reset Begin Request. PasswordResetRequestStatusId: {passwordResetRequestStatusId}", null, $"E-Mail Address: {eMailAddress}", userIpAddress, googleReCaptchaScore, utcNow);
 
                 EadentUserIdentityDatabase.SaveChanges();
             }
@@ -1281,7 +1274,7 @@ namespace Eadent.Identity.Access
             return (passwordResetRequestStatusId, resetToken, userEntity);
         }
 
-        public (UserPasswordResetRequestStatus passwordResetRequestStatusId, UserPasswordResetEntity passwordResetEntity) CheckAndUpdateUserPasswordReset(string resetToken, string ipAddress)
+        public (UserPasswordResetRequestStatus passwordResetRequestStatusId, UserPasswordResetEntity passwordResetEntity) CheckAndUpdateUserPasswordReset(string resetToken, string userIpAddress)
         {
             var passwordResetRequestStatusId = UserPasswordResetRequestStatus.Error;
 
@@ -1303,7 +1296,7 @@ namespace Eadent.Identity.Access
                     {
                         case PasswordResetStatus.Open:
 
-                            if (userPasswordResetEntity.RequestedDateTimeUtc.AddSeconds(userPasswordResetEntity.ExpirationDurationSeconds) <= utcNow)
+                            if (userPasswordResetEntity.ResetTokenRequestedDateTimeUtc.AddSeconds(userPasswordResetEntity.ResetTokenExpirationDurationSeconds) <= utcNow)
                             {
                                 userPasswordResetEntity.PasswordResetStatusId = PasswordResetStatus.TimedOutExpired;
                                 UserPasswordResetsRepository.Update(userPasswordResetEntity);
@@ -1333,9 +1326,9 @@ namespace Eadent.Identity.Access
                     }
                 }
 
-                Logger.LogInformation($"PasswordResetRequestStatusId: {passwordResetRequestStatusId} : IpAddress: {ipAddress}");
+                Logger.LogInformation($"PasswordResetRequestStatusId: {passwordResetRequestStatusId} : UserIpAddress: {userIpAddress}");
 
-                CreateUserAudit(userPasswordResetEntity?.UserId, $"Password Reset Check And Update Request. PasswordResetRequestStatusId: {passwordResetRequestStatusId}", null, null, ipAddress, null, utcNow);
+                CreateUserAudit(userPasswordResetEntity?.UserId, $"Password Reset Check And Update Request. PasswordResetRequestStatusId: {passwordResetRequestStatusId}", null, null, userIpAddress, null, utcNow);
 
                 EadentUserIdentityDatabase.SaveChanges();
             }
@@ -1349,7 +1342,7 @@ namespace Eadent.Identity.Access
             return (passwordResetRequestStatusId, userPasswordResetEntity);
         }
 
-        public (UserPasswordResetRequestStatus passwordResetRequestStatusId, UserPasswordResetEntity passwordResetEntity) CommitUserPasswordReset(string resetToken, string newPlainTextPassword, string ipAddress, decimal googleReCaptchaScore)
+        public (UserPasswordResetRequestStatus passwordResetRequestStatusId, UserPasswordResetEntity passwordResetEntity) CommitUserPasswordReset(string resetToken, string newPlainTextPassword, string userIpAddress, decimal googleReCaptchaScore)
         {
             // TODO: Validate New Plain Text Password.
 
@@ -1373,7 +1366,7 @@ namespace Eadent.Identity.Access
                     {
                         case PasswordResetStatus.Open:
 
-                            if (userPasswordResetEntity.RequestedDateTimeUtc.AddSeconds(userPasswordResetEntity.ExpirationDurationSeconds) <= utcNow)
+                            if (userPasswordResetEntity.ResetTokenRequestedDateTimeUtc.AddSeconds(userPasswordResetEntity.ResetTokenExpirationDurationSeconds) <= utcNow)
                             {
                                 userPasswordResetEntity.PasswordResetStatusId = PasswordResetStatus.TimedOutExpired;
                                 UserPasswordResetsRepository.Update(userPasswordResetEntity);
@@ -1394,11 +1387,11 @@ namespace Eadent.Identity.Access
 
                                     UserPasswordResetsRepository.Update(userPasswordResetEntity);
 
-                                    string newHashedPassword = HashUserPasswordHMACSHA512(newPlainTextPassword, userEntity.PasswordHashIterationCount, userEntity.PasswordHashNumDerivedKeyBytes, userEntity.SaltGuid);
+                                    string newHashedPassword = HashUserPasswordHMACSHA512(newPlainTextPassword, userEntity.PasswordHashIterationCount, userEntity.PasswordHashNumDerivedKeyBytes, userEntity.PasswordSaltGuid);
 
                                     userEntity.PasswordVersionId = PasswordVersion.HMACSHA512;
                                     userEntity.Password = newHashedPassword;
-                                    userEntity.PasswordDateTimeUtc = utcNow;
+                                    userEntity.PasswordLastUpdatedDateTimeUtc = utcNow;
 
                                     UsersRepository.Update(userEntity);
 
@@ -1424,9 +1417,9 @@ namespace Eadent.Identity.Access
                     }
                 }
 
-                Logger.LogInformation($"PasswordResetRequestStatusId: {passwordResetRequestStatusId} : IpAddress: {ipAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
+                Logger.LogInformation($"PasswordResetRequestStatusId: {passwordResetRequestStatusId} : UserIpAddress: {userIpAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
 
-                CreateUserAudit(userPasswordResetEntity?.UserId, $"Password Reset Commit Request. PasswordResetRequestStatusId: {passwordResetRequestStatusId}", null, null, ipAddress, googleReCaptchaScore, utcNow);
+                CreateUserAudit(userPasswordResetEntity?.UserId, $"Password Reset Commit Request. PasswordResetRequestStatusId: {passwordResetRequestStatusId}", null, null, userIpAddress, googleReCaptchaScore, utcNow);
 
                 EadentUserIdentityDatabase.SaveChanges();
             }
@@ -1440,7 +1433,7 @@ namespace Eadent.Identity.Access
             return (passwordResetRequestStatusId, userPasswordResetEntity);
         }
 
-        public (UserPasswordResetRequestStatus passwordResetRequestStatusId, UserPasswordResetEntity passwordResetEntity) AbortUserPasswordReset(string resetToken, string ipAddress)
+        public (UserPasswordResetRequestStatus passwordResetRequestStatusId, UserPasswordResetEntity passwordResetEntity) AbortUserPasswordReset(string resetToken, string userIpAddress)
         {
             var passwordResetRequestStatusId = UserPasswordResetRequestStatus.Error;
 
@@ -1485,9 +1478,9 @@ namespace Eadent.Identity.Access
                     }
                 }
 
-                Logger.LogInformation($"PasswordResetRequestStatusId: {passwordResetRequestStatusId} : IpAddress: {ipAddress}");
+                Logger.LogInformation($"PasswordResetRequestStatusId: {passwordResetRequestStatusId} : UserIpAddress: {userIpAddress}");
 
-                CreateUserAudit(userPasswordResetEntity?.UserId, $"Password Reset Abort Request. PasswordResetRequestStatusId: {passwordResetRequestStatusId}", null, null, ipAddress, null, utcNow);
+                CreateUserAudit(userPasswordResetEntity?.UserId, $"Password Reset Abort Request. PasswordResetRequestStatusId: {passwordResetRequestStatusId}", null, null, userIpAddress, null, utcNow);
 
                 EadentUserIdentityDatabase.SaveChanges();
             }

@@ -15,15 +15,19 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Entities
 
         public string ResetToken { get; set; }
 
-        public DateTime RequestedDateTimeUtc { get; set; }
+        public DateTime ResetTokenRequestedDateTimeUtc { get; set; }
 
-        public int ExpirationDurationSeconds { get; set; }
+        public int ResetTokenExpirationDurationSeconds { get; set; }
 
         public string EMailAddress { get; set; }
 
-        public string IpAddress { get; set; }
+        public string UserIpAddress { get; set; }
 
         public long? UserId { get; set; }
+
+        public DateTime CreatedDateTimeUtc { get; set; }
+
+        public DateTime? LastUpdatedDateTimeUtc { get; set; }
 
         public virtual UserEntity User { get; set; }
     }

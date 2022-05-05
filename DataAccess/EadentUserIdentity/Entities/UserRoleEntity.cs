@@ -17,6 +17,8 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Entities
 
         public DateTime CreatedDateTimeUtc { get; set; }
 
+        public DateTime? LastUpdatedDateTimeUtc { get; set; }
+
         public virtual RoleEntity Role { get; set; }
 
         public virtual UserEntity User { get; set; }

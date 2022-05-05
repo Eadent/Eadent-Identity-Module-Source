@@ -16,8 +16,10 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Entities
         [Key]
         public PasswordVersion PasswordVersionId { get; set; }
 
-        public string Name { get; set; }
+        public string PasswordVersion { get; set; }
 
         public DateTime CreatedDateTimeUtc { get; set; }
+
+        public DateTime? LastUpdatedDateTimeUtc { get; set; }
     }
 }

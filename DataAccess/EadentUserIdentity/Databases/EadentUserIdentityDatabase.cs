@@ -14,8 +14,6 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Databases
         // Database Tables.
         public virtual DbSet<UserEntity> Users { get; set; }
 
-        public virtual DbSet<UserEMailEntity> UserEMails { get; set; }
-
         public virtual DbSet<UserRoleEntity> UserRoles { get; set; }
 
         public virtual DbSet<UserStatusEntity> UserStatuses { get; set; }

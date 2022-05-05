@@ -5,5 +5,6 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Repositories
 {
     internal interface IUsersRepository : IBaseRepository<UserEntity, long>
     {
+        UserEntity GetFirstOrDefaultByEMailAddressIncludeRoles(string eMailAddress);
     }
 }
