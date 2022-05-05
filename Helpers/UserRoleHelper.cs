@@ -1,4 +1,5 @@
-﻿using Eadent.Identity.DataAccess.EadentUserIdentity.Entities;
+﻿using Eadent.Identity.Configuration;
+using Eadent.Identity.DataAccess.EadentUserIdentity.Entities;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -14,7 +15,7 @@ namespace Eadent.Identity.Helpers
             {
                 var minRoleLevel = userRoles.Min(userRole => userRole.Role.RoleLevel);
 
-                if (minRoleLevel <= RoleEntity.RoleLevelPrivilegedThresholdInclusive)
+                if (minRoleLevel <= EadentIdentitySettings.Instance.UserIdentity.Security.RoleLevelPrivilegedThresholdInclusive)
                 {
                     isPrivileged = true;
                 }

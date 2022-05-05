@@ -9,9 +9,6 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Entities
     [Table("Roles")]
     public class RoleEntity
     {
-        // Users having a Role Level <= this value are considered Privileged.
-        public const short RoleLevelPrivilegedThresholdInclusive = 3000;
-
         public RoleEntity()
         {
             UserRoles = new HashSet<UserRoleEntity>();

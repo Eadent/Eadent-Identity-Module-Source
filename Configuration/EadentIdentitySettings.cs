@@ -4,6 +4,13 @@
     {
         public const string SectionName = "EadentIdentity";
 
+        public static EadentIdentitySettings Instance { get; private set; }
+
+        public EadentIdentitySettings()
+        {
+            Instance = this;
+        }
+
         public class DatabaseSettings
         {
             public string DatabaseServer { get; set; }
@@ -33,6 +40,8 @@
             }
 
             public HasherSettings Hasher { get; set; }
+
+            public int RoleLevelPrivilegedThresholdInclusive { get; set; }
         }
 
         public class AccountSettings
