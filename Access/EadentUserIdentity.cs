@@ -384,13 +384,13 @@ namespace Eadent.Identity.Access
             return deleteUserStatusId;
         }
 
-        public (RegisterUserStatus registerStatusId, UserEntity userEntity) RegisterUser(int createdByApplicationId, string userGuidString, Role roleId, string displayName, string eMailAddress, string mobilePhoneNumber, string plainTextPassword, string userIpAddress, decimal googleReCaptchaScore)
+        public (RegisterUserStatus registerUserStatusId, UserEntity userEntity) RegisterUser(int createdByApplicationId, string userGuidString, Role roleId, string displayName, string eMailAddress, string mobilePhoneNumber, string plainTextPassword, string userIpAddress, decimal googleReCaptchaScore)
         {
             // TODO: Validate E-Mail Address.
             // TODO: Validate Mpbile Phone Number.
             // TODO: Validate Plain Text Password.
 
-            var registerStatusId = RegisterUserStatus.Error;
+            var registerUserStatusId = RegisterUserStatus.Error;
 
             UserEntity userEntity = null;
 
@@ -404,19 +404,19 @@ namespace Eadent.Identity.Access
 
                 if (userEntity != null)
                 {
-                    registerStatusId = RegisterUserStatus.UserAlreadyExists;
+                    registerUserStatusId = RegisterUserStatus.UserAlreadyExists;
                 }
                 else
                 {
                     userEntity = CreateUser(createdByApplicationId, userGuidString, displayName, eMailAddress, mobilePhoneNumber, plainTextPassword, utcNow);
                     CreateUserRole(userEntity, roleId, utcNow);
 
-                    registerStatusId = RegisterUserStatus.Success;
+                    registerUserStatusId = RegisterUserStatus.Success;
                 }
 
-                Logger.LogInformation($"RegisterStatusId: {registerStatusId} : EMailAddress: {eMailAddress} : MobilePhoneNUmber: {mobilePhoneNumber} : UserIpAddress: {userIpAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
+                Logger.LogInformation($"RegisterUserStatusId: {registerUserStatusId} : EMailAddress: {eMailAddress} : MobilePhoneNUmber: {mobilePhoneNumber} : UserIpAddress: {userIpAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
 
-                CreateUserAudit(userEntity.UserId, $"User Register. RegisterStatusId: {registerStatusId}", null, $"Created By Application Id: {createdByApplicationId} : E-Mail Address: {eMailAddress} : Mobile Phone Number: {mobilePhoneNumber}", userIpAddress, googleReCaptchaScore, utcNow);
+                CreateUserAudit(userEntity.UserId, $"User Register. RegisterUserStatusId: {registerUserStatusId}", null, $"Created By Application Id: {createdByApplicationId} : E-Mail Address: {eMailAddress} : Mobile Phone Number: {mobilePhoneNumber}", userIpAddress, googleReCaptchaScore, utcNow);
 
                 EadentUserIdentityDatabase.SaveChanges();
                 EadentUserIdentityDatabase.CommitTransaction();
@@ -427,10 +427,10 @@ namespace Eadent.Identity.Access
 
                 EadentUserIdentityDatabase.RollbackTransaction();
 
-                registerStatusId = RegisterUserStatus.Error;
+                registerUserStatusId = RegisterUserStatus.Error;
             }
 
-            return (registerStatusId, userEntity);
+            return (registerUserStatusId, userEntity);
         }
 
         public (SignInStatus signInStatusId, UserSessionEntity userSessionEntity, DateTime? previousUserSignInDateTimeUtc) SignInUser(SignInType signInTypeId, string eMailAddress, string plainTextPassword, string userIpAddress, decimal? googleReCaptchaScore)

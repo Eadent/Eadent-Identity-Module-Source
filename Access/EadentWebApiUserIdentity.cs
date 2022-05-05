@@ -73,6 +73,11 @@ namespace Eadent.Identity.Access
             return responseDto;
         }
 
+        public RegisterUserResponseDto RegisterUser(RegisterUserRequestDto requestDto, string userIpAddress)
+        {
+
+        }
+
         public UserCheckAndUpdateSessionResponseDto CheckAndUpdateUserSession(string userWebApiSessionToken, UserCheckAndUpdateSessionRequestDto requestDto, string userIpAddress)
         {
             var responseDto = new UserCheckAndUpdateSessionResponseDto();
