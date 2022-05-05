@@ -5,7 +5,6 @@ using Eadent.Identity.DataAccess.EadentUserIdentity.Entities;
 using Eadent.Identity.DataAccess.EadentUserIdentity.Repositories;
 using Eadent.Identity.Definitions;
 using Eadent.Identity.Helpers;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
 

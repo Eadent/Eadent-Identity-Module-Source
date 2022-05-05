@@ -2,7 +2,6 @@
 using Eadent.Identity.Configuration;
 using Eadent.Identity.DataAccess.EadentUserIdentity.Entities;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 
 namespace Eadent.Identity.DataAccess.EadentUserIdentity.Databases
 {
