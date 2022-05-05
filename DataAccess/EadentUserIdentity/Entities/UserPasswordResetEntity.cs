@@ -1,7 +1,7 @@
-﻿using System;
+﻿using Eadent.Identity.Definitions;
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Eadent.Identity.Definitions;
 
 namespace Eadent.Identity.DataAccess.EadentUserIdentity.Entities
 {

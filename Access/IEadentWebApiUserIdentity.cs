@@ -1,5 +1,4 @@
 ﻿using Eadent.Common.WebApi.DataTransferObjects.Sessions.Users;
-using Eadent.Common.WebApi.Definitions;
 
 namespace Eadent.Identity.Access
 {

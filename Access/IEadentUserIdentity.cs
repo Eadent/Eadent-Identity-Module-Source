@@ -1,6 +1,6 @@
-﻿using System;
-using Eadent.Identity.DataAccess.EadentUserIdentity.Entities;
+﻿using Eadent.Identity.DataAccess.EadentUserIdentity.Entities;
 using Eadent.Identity.Definitions;
+using System;
 
 namespace Eadent.Identity.Access
 {

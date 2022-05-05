@@ -1,6 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using Eadent.Identity.DataAccess.EadentUserIdentity.Entities;
+using System.Collections.Generic;
 using System.Linq;
-using Eadent.Identity.DataAccess.EadentUserIdentity.Entities;
 
 namespace Eadent.Identity.Helpers
 {
