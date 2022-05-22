@@ -14,9 +14,9 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Entities
 
         public string Activity { get; set; }
 
-        public string OldValue { get; set; }
+        public string? OldValue { get; set; }
 
-        public string NewValue { get; set; }
+        public string? NewValue { get; set; }
 
         public string UserIpAddress { get; set; }
 

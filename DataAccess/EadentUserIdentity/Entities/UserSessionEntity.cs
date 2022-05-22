@@ -23,7 +23,7 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Entities
 
         public string EMailAddress { get; set; }
 
-        public string MobilePhoneNumber { get; set; }
+        public string? MobilePhoneNumber { get; set; }
 
         public string UserIpAddress { get; set; }
 

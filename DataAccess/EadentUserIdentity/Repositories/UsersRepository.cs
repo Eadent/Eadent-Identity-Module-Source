@@ -12,7 +12,7 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Repositories
         {
         }
 
-        public UserEntity GetFirstOrDefaultByEMailAddressIncludeRoles(string eMailAddress)
+        public UserEntity? GetFirstOrDefaultByEMailAddressIncludeRoles(string eMailAddress)
         {
             var userEntity = Database.Context.Set<UserEntity>()
                 .Include(entity => entity.UserRoles)

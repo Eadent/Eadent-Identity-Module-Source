@@ -31,13 +31,13 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Entities
 
         public ConfirmationStatus EMailAddressConfirmationStatusId { get; set; }
 
-        public string EMailAddressConfirmationCode { get; set; }
+        public string? EMailAddressConfirmationCode { get; set; }
 
-        public string MobilePhoneNumber { get; set; }
+        public string? MobilePhoneNumber { get; set; }
 
         public ConfirmationStatus MobilePhoneNumberConfirmationStatusId { get; set; }
 
-        public string MobilePhoneNumberConfirmationCode { get; set; }
+        public string? MobilePhoneNumberConfirmationCode { get; set; }
 
         public PasswordVersion PasswordVersionId { get; set; }
 
