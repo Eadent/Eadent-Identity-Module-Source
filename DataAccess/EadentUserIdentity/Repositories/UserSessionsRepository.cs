@@ -1,4 +1,4 @@
-﻿using Eadent.Common.DataAccess.Repositories;
+﻿using Eadent.Common.DataAccess.EntityFramework.Repositories;
 using Eadent.Identity.DataAccess.EadentUserIdentity.Databases;
 using Eadent.Identity.DataAccess.EadentUserIdentity.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +13,7 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Repositories
         {
         }
 
-        public UserSessionEntity GetFirstOrDefaultIncludeUserAndRoles(string userSessionToken)
+        public UserSessionEntity? GetFirstOrDefaultIncludeUserAndRoles(string userSessionToken)
         {
             var userSessionEntity = Database.Context.Set<UserSessionEntity>()
                 .Include(entity => entity.User)
@@ -24,7 +24,7 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Repositories
             return userSessionEntity;
         }
 
-        public UserSessionEntity GetFirstOrDefaultByUserSessionGuidIncludeUserAndRoles(Guid userSessionGuid)
+        public UserSessionEntity? GetFirstOrDefaultByUserSessionGuidIncludeUserAndRoles(Guid userSessionGuid)
         {
             var userSessionEntity = Database.Context.Set<UserSessionEntity>()
                 .Include(entity => entity.User)
@@ -35,7 +35,7 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Repositories
             return userSessionEntity;
         }
 
-        public UserSessionEntity GetLastOrDefault(long userId)
+        public UserSessionEntity? GetLastOrDefault(long userId)
         {
             var userSessionEntity = Database.Context.Set<UserSessionEntity>()
                 .OrderByDescending(entity => entity.UserSessionId)
