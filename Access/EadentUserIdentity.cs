@@ -34,10 +34,10 @@ namespace Eadent.Identity.Access
 
         private IUserSessionsRepository UserSessionsRepository { get; }
 
-        private IUserPasswordResetsRepository UserPasswordResetsRepository{ get; }
+        private IUserPasswordResetsRepository UserPasswordResetsRepository { get; }
 
         public EadentUserIdentity(ILogger<EadentUserIdentity> logger, IConfiguration configuration,
-            IEadentUserIdentityDatabase eadentUserIdentityDatabase, 
+            IEadentUserIdentityDatabase eadentUserIdentityDatabase,
             IUsersRepository usersRepository,
             IUserRolesRepository userRolesRepository, IUserAuditsRepository userAuditsRepository,
             IUserSessionsRepository userSessionsRepository, IUserPasswordResetsRepository userPasswordResetsRepository)
@@ -933,7 +933,7 @@ namespace Eadent.Identity.Access
                 else
                 {
                     initiatingUserId = userSessionEntity.UserId;
-    
+
                     if (userSessionEntity.UserSessionStatusId != UserSessionStatus.SignedIn)
                     {
                         switch (userSessionEntity.UserSessionStatusId)
@@ -1489,6 +1489,29 @@ namespace Eadent.Identity.Access
             }
 
             return (passwordResetRequestStatusId, userPasswordResetEntity);
+        }
+
+        // The following are Administration methods that should not be used by the general public.
+
+        public bool AdminDoesUserExist(string eMailAddress)
+        {
+            bool userExists = false;
+
+            try
+            {
+                UserEntity userEntity = UsersRepository.GetFirstOrDefaultByEMailAddressIncludeRoles(eMailAddress);
+
+                if (userEntity != null)
+                {
+                    userExists = true;
+                }
+            }
+            catch (Exception exception)
+            {
+                Logger.LogError(exception, "An Exception has occurred.");
+            }
+
+            return userExists;
         }
     }
 }

@@ -31,5 +31,8 @@ namespace Eadent.Identity.Access
         (UserPasswordResetRequestStatus passwordResetRequestStatusId, UserPasswordResetEntity passwordResetEntity) CommitUserPasswordReset(string resetToken, string newPlainTextPassword, string userIpAddress, decimal googleReCaptchaScore);
 
         (UserPasswordResetRequestStatus passwordResetRequestStatusId, UserPasswordResetEntity passwordResetEntity) AbortUserPasswordReset(string resetToken, string userIpAddress);
+
+        // The following are Administration methods that should not be used by the general public.
+        bool AdminDoesUserExist(string eMailAddress);
     }
 }
