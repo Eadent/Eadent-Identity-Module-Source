@@ -2,6 +2,7 @@
 using Eadent.Identity.DataAccess.EadentUserIdentity.Databases;
 using Eadent.Identity.DataAccess.EadentUserIdentity.Entities;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.Linq;
 
 namespace Eadent.Identity.DataAccess.EadentUserIdentity.Repositories
@@ -18,6 +19,16 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Repositories
                 .Include(entity => entity.UserRoles)
                 .ThenInclude(entity => entity.Role)
                 .FirstOrDefault(entity => entity.EMailAddress == eMailAddress);
+
+            return userEntity;
+        }
+
+        public UserEntity GetFirstOrDefaultByEMailAddressAndUserGuidIncludeRoles(string eMailAddress, Guid userGuid)
+        {
+            var userEntity = Database.Context.Set<UserEntity>()
+                .Include(entity => entity.UserRoles)
+                .ThenInclude(entity => entity.Role)
+                .FirstOrDefault(entity => entity.EMailAddress == eMailAddress && entity.UserGuid == userGuid);
 
             return userEntity;
         }

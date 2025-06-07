@@ -1513,5 +1513,53 @@ namespace Eadent.Identity.Access
 
             return userExists;
         }
+
+        public UserEntity AdminForceUserPasswordChange(string eMailAddress, Guid userGuid, string newPlainTextPassword, string userIpAddress, decimal googleReCaptchaScore)
+        {
+            // TODO: Validate New Plain Text Password.
+
+            UserEntity userEntity = null;
+
+            DateTime utcNow = DateTime.UtcNow;
+
+            var passwordHashIterationCount = EadentIdentitySettings.Instance.UserIdentity.Security.Hasher.IterationCount;
+            var passwordHashNumDerivedKeyBytes = EadentIdentitySettings.Instance.UserIdentity.Security.Hasher.NumDerivedKeyBytes;
+
+            try
+            {
+                userEntity = UsersRepository.GetFirstOrDefaultByEMailAddressAndUserGuidIncludeRoles(eMailAddress, userGuid);
+
+                if (userEntity != null)
+                {
+                    string newHashedPassword = HashUserPasswordHMACSHA512(newPlainTextPassword, userEntity.PasswordHashIterationCount, userEntity.PasswordHashNumDerivedKeyBytes, userEntity.PasswordSaltGuid);
+
+                    userEntity.PasswordVersionId = PasswordVersion.HMACSHA512;
+                    userEntity.Password = newHashedPassword;
+                    userEntity.PasswordLastUpdatedDateTimeUtc = utcNow;
+
+                    UsersRepository.Update(userEntity);
+
+                    Logger.LogInformation($"AdminForceUserPasswordChange: Success : EMailAddress: {eMailAddress} : UserGuid: {userGuid} : UserIpAddress: {userIpAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
+
+                    CreateUserAudit(userEntity?.UserId, $"Force User Password Change. Success : EMailAddress: {eMailAddress} : UserGuid: {userGuid}", null, null, userIpAddress, googleReCaptchaScore, utcNow);
+                }
+                else
+                {
+                    Logger.LogInformation($"AdminForceUserPasswordChange: Error : EMailAddress: {eMailAddress} : UserGuid: {userGuid} : UserIpAddress: {userIpAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
+
+                    CreateUserAudit(userEntity?.UserId, $"Force User Password Change. Error : EMailAddress: {eMailAddress} : UserGuid: {userGuid}", null, null, userIpAddress, googleReCaptchaScore, utcNow);
+                }
+
+                EadentUserIdentityDatabase.SaveChanges();
+            }
+            catch (Exception exception)
+            {
+                Logger.LogError(exception, "An Exception has occurred.");
+
+                userEntity = null;
+            }
+
+            return userEntity;
+        }
     }
 }

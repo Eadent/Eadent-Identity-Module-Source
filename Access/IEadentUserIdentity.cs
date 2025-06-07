@@ -34,5 +34,7 @@ namespace Eadent.Identity.Access
 
         // The following are Administration methods that should not be used by the general public.
         bool AdminDoesUserExist(string eMailAddress);
+
+        UserEntity AdminForceUserPasswordChange(string eMailAddress, Guid userGuid, string newPlainTextPassword, string userIpAddress, decimal googleReCaptchaScore);
     }
 }
