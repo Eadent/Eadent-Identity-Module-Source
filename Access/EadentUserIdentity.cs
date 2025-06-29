@@ -13,6 +13,8 @@ using System.Collections.Generic;
 using System.Data;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using PasswordVersion = Eadent.Identity.Definitions.PasswordVersion;
 using Role = Eadent.Identity.Definitions.Role;
 using SignInStatus = Eadent.Identity.Definitions.SignInStatus;
@@ -528,6 +530,7 @@ namespace Eadent.Identity.Access
             return (signInStatusId, userSessionEntity, previousUserSignInDateTimeUtc);
         }
 
+        // NOTE: As of 29-June-2025, this method cannot be an asynchronous method because it is used in the constructor of the UserSession class.
         public (SessionStatus sessionStatusId, UserSessionEntity userSessionEntity) CheckAndUpdateUserSession(string userSessionToken, string userIpAddress)
         {
             var sessionStatusId = SessionStatus.Error;
@@ -1490,6 +1493,165 @@ namespace Eadent.Identity.Access
 
             return (passwordResetRequestStatusId, userPasswordResetEntity);
         }
+
+        public async Task<(UserPasswordResetStatus userPasswordResetStatusId, string userPasswordResetCode)>
+            BeginUserPasswordResetAsync(string eMailAddress, string userIpAddress, decimal googleReCaptchaScore, CancellationToken cancellationToken = default)
+        {
+            UserPasswordResetStatus userPasswordResetStatusId = UserPasswordResetStatus.Error;
+
+            string userPasswordResetCode = null;
+
+            if (eMailAddress == "Eamonn.Duffy@GMail.com")
+            {                 // For testing purposes, we can hard-code a user password reset code.
+                userPasswordResetStatusId = UserPasswordResetStatus.NewRequest;
+                userPasswordResetCode = "000049";
+            }
+            else if (eMailAddress == "Eamonn@Duffy.global")
+            {                 // For testing purposes, we can hard-code a user password reset code.
+                userPasswordResetStatusId = UserPasswordResetStatus.OutstandingRequest;
+                userPasswordResetCode = "000555";
+            }
+            else
+            {
+                userPasswordResetStatusId = UserPasswordResetStatus.InvalidEMailAddress;
+                userPasswordResetCode = null;
+            }
+
+            return (userPasswordResetStatusId, userPasswordResetCode);
+        }
+
+        public async Task<(UserPasswordResetStatus userPasswordResetStatusId, string userPasswordResetCode)>
+            RequestNewUserPasswordResetCodeAsync(string eMailAddress, string userIpAddress, decimal googleReCaptchaScore, CancellationToken cancellationToken = default)
+        {
+            UserPasswordResetStatus userPasswordResetStatusId = UserPasswordResetStatus.Error;
+
+            string userPasswordResetCode = null;
+
+            if (eMailAddress == "Eamonn.Duffy@GMail.com")
+            {                 // For testing purposes, we can hard-code a user password reset code.
+                userPasswordResetStatusId = UserPasswordResetStatus.NewRequest;
+                userPasswordResetCode = "000049";
+            }
+            else if (eMailAddress == "Eamonn@Duffy.global")
+            {                 // For testing purposes, we can hard-code a user password reset code.
+                userPasswordResetStatusId = UserPasswordResetStatus.NewRequest;
+                userPasswordResetCode = "000555";
+            }
+            else
+            {
+                userPasswordResetStatusId = UserPasswordResetStatus.InvalidEMailAddress;
+                userPasswordResetCode = null;
+            }
+
+            return (userPasswordResetStatusId, userPasswordResetCode);
+        }
+
+        public async Task<UserPasswordResetStatus>
+            TryUserPasswordResetCodeAsync(string eMailAddress, string userPasswordResetCode, string userIpAddress, decimal googleReCaptchaScore, CancellationToken cancellationToken = default)
+        {
+            UserPasswordResetStatus userPasswordResetStatusId = UserPasswordResetStatus.Error;
+
+            if (eMailAddress == "Eamonn.Duffy@GMail.com")
+            {
+                if (userPasswordResetCode == "000049")
+                {
+                    userPasswordResetStatusId = UserPasswordResetStatus.ValidResetCode;
+                }
+                else
+                {
+                    userPasswordResetStatusId = UserPasswordResetStatus.InvalidResetCode;
+                }
+            }
+            else if (eMailAddress == "Eamonn@Duffy.global")
+            {
+                if (userPasswordResetCode == "000555")
+                {
+                    userPasswordResetStatusId = UserPasswordResetStatus.ValidResetCode;
+                }
+                else
+                {
+                    userPasswordResetStatusId = UserPasswordResetStatus.InvalidResetCode;
+                }
+            }
+            else
+            {
+                userPasswordResetStatusId = UserPasswordResetStatus.InvalidEMailAddress;
+            }
+
+            return userPasswordResetStatusId;
+        }
+
+        public async Task<UserPasswordResetStatus>
+            CommitUserPasswordResetAsync(string eMailAddress, string userPasswordResetCode, string newPlainTextPassword, string userIpAddress, decimal googleReCaptchaScore, CancellationToken cancellationToken = default)
+        {
+            UserPasswordResetStatus userPasswordResetStatusId = UserPasswordResetStatus.Error;
+
+            if (eMailAddress == "Eamonn.Duffy@GMail.com")
+            {
+                if (userPasswordResetCode == "000049")
+                {
+                    userPasswordResetStatusId = UserPasswordResetStatus.Success;
+                }
+                else
+                {
+                    userPasswordResetStatusId = UserPasswordResetStatus.InvalidResetCode;
+                }
+            }
+            else if (eMailAddress == "Eamonn@Duffy.global")
+            {
+                if (userPasswordResetCode == "000555")
+                {
+                    userPasswordResetStatusId = UserPasswordResetStatus.Success;
+                }
+                else
+                {
+                    userPasswordResetStatusId = UserPasswordResetStatus.InvalidResetCode;
+                }
+            }
+            else
+            {
+                userPasswordResetStatusId = UserPasswordResetStatus.InvalidEMailAddress;
+            }
+
+            return userPasswordResetStatusId;
+        }
+
+        public async Task<UserPasswordResetStatus>
+            RollBackUserPasswordResetAsync(string eMailAddress, string userPasswordResetCode, string userIpAddress, decimal googleReCaptchaScore, CancellationToken cancellationToken = default)
+        {
+            UserPasswordResetStatus userPasswordResetStatusId = UserPasswordResetStatus.Error;
+
+            if (eMailAddress == "Eamonn.Duffy@GMail.com")
+            {
+                if (userPasswordResetCode == "000049")
+                {
+                    userPasswordResetStatusId = UserPasswordResetStatus.Success;
+                }
+                else
+                {
+                    userPasswordResetStatusId = UserPasswordResetStatus.InvalidResetCode;
+                }
+            }
+            else if (eMailAddress == "Eamonn@Duffy.global")
+            {
+                if (userPasswordResetCode == "000555")
+                {
+                    userPasswordResetStatusId = UserPasswordResetStatus.Success;
+                }
+                else
+                {
+                    userPasswordResetStatusId = UserPasswordResetStatus.InvalidResetCode;
+                }
+            }
+            else
+            {
+                userPasswordResetStatusId = UserPasswordResetStatus.InvalidEMailAddress;
+            }
+
+            return userPasswordResetStatusId;
+        }
+
+
 
         // The following are Administration methods that should not be used by the general public.
 
