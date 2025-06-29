@@ -13,7 +13,7 @@ namespace Eadent.Identity
         {
             var databaseSettings = EadentIdentitySettings.Instance.UserIdentity.Database;
 
-            string connectionString = $"Server={databaseSettings.DatabaseServer};Database={databaseSettings.DatabaseName};Application Name={databaseSettings.ApplicationName};User Id={databaseSettings.UserName};Password={databaseSettings.Password};";
+            string connectionString = $"Server={databaseSettings.DatabaseServer};Database={databaseSettings.DatabaseName};Application Name={databaseSettings.ApplicationName};User Id={databaseSettings.UserName};Password={databaseSettings.Password};Encrypt=false;";
 
             services.AddDbContext<EadentUserIdentityDatabase>(options => options.UseSqlServer(connectionString));
 
