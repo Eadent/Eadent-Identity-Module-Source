@@ -1616,6 +1616,15 @@ namespace Eadent.Identity.Access
             return userPasswordResetStatusId;
         }
 
+        // TODO: REVIEW: What was the logic behind this method? We should NOT delete a Password Reset Code just if we Cancel? Or should we?
+        //               If we get as far as Entering and Confirming a New Password, then we should delete the Password Reset Code?
+        //               Is there any risk to Deleting a Password Reset Code if we Cancel the Password Reset at the Enter New Password stage?
+        //               Basically, the Password Reset Code was notionally Successful and got us to the Enter New Password stage so it has been "used"?
+        //               What if a User moves away from the Page without entering a New Password? The Password Reset Code is still valid? So does Roll Back make sense?
+        //               It may only be helpful to stop the Database Table from filling up with expired Password Reset Codes?
+        //               But then, we should probably just delete all Password Reset Codes that are older than a certain age?
+        //               Incidentally, do we need an "PasswordResetCodeUsed" Status?
+        //               And update the Table after the Enter Password Reset Code but before the Enter New Password stage?
         public async Task<UserPasswordResetStatus>
             RollBackUserPasswordResetAsync(string eMailAddress, string userPasswordResetCode, string userIpAddress, decimal googleReCaptchaScore, CancellationToken cancellationToken = default)
         {
@@ -1650,8 +1659,6 @@ namespace Eadent.Identity.Access
 
             return userPasswordResetStatusId;
         }
-
-
 
         // The following are Administration methods that should not be used by the general public.
 
