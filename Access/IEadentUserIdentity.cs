@@ -35,7 +35,7 @@ namespace Eadent.Identity.Access
 
         (UserPasswordResetRequestStatus passwordResetRequestStatusId, UserPasswordResetEntity passwordResetEntity) AbortUserPasswordReset(string resetToken, string userIpAddress);
 
-        Task<(UserPasswordResetStatus userPasswordResetStatusId, string userPasswordResetCode)>
+        Task<(UserPasswordResetStatus userPasswordResetStatusId, string displayName, string userPasswordResetCode)>
             BeginUserPasswordResetAsync(string eMailAddress, string userIpAddress, decimal googleReCaptchaScore, CancellationToken cancellationToken = default);
 
         Task<(UserPasswordResetStatus userPasswordResetStatusId, string userPasswordResetCode)>

@@ -1494,10 +1494,12 @@ namespace Eadent.Identity.Access
             return (passwordResetRequestStatusId, userPasswordResetEntity);
         }
 
-        public async Task<(UserPasswordResetStatus userPasswordResetStatusId, string userPasswordResetCode)>
+        public async Task<(UserPasswordResetStatus userPasswordResetStatusId, string displayName, string userPasswordResetCode)>
             BeginUserPasswordResetAsync(string eMailAddress, string userIpAddress, decimal googleReCaptchaScore, CancellationToken cancellationToken = default)
         {
             UserPasswordResetStatus userPasswordResetStatusId = UserPasswordResetStatus.Error;
+
+            string displayName = eMailAddress;
 
             string userPasswordResetCode = null;
 
@@ -1517,7 +1519,7 @@ namespace Eadent.Identity.Access
                 userPasswordResetCode = null;
             }
 
-            return (userPasswordResetStatusId, userPasswordResetCode);
+            return (userPasswordResetStatusId, displayName, userPasswordResetCode);
         }
 
         public async Task<(UserPasswordResetStatus userPasswordResetStatusId, string userPasswordResetCode)>
