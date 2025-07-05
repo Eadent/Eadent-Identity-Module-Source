@@ -1513,6 +1513,11 @@ namespace Eadent.Identity.Access
                 userPasswordResetStatusId = UserPasswordResetStatus.OutstandingRequest;
                 userPasswordResetCode = "000555";
             }
+            else if (eMailAddress == "Eamonn@Duffy.name")
+            {                 // For testing purposes, we can hard-code a user password reset code.
+                userPasswordResetStatusId = UserPasswordResetStatus.NewRequest;
+                userPasswordResetCode = "000112";
+            }
             else
             {
                 userPasswordResetStatusId = UserPasswordResetStatus.InvalidEMailAddress;
@@ -1538,6 +1543,11 @@ namespace Eadent.Identity.Access
             {                 // For testing purposes, we can hard-code a user password reset code.
                 userPasswordResetStatusId = UserPasswordResetStatus.NewRequest;
                 userPasswordResetCode = "000555";
+            }
+            else if (eMailAddress == "Eamonn@Duffy.name")
+            {                 // For testing purposes, we can hard-code a user password reset code.
+                userPasswordResetStatusId = UserPasswordResetStatus.LimitsReached;
+                userPasswordResetCode = null;
             }
             else
             {
@@ -1575,6 +1585,10 @@ namespace Eadent.Identity.Access
                     userPasswordResetStatusId = UserPasswordResetStatus.InvalidResetCode;
                 }
             }
+            else if (eMailAddress == "Eamonn@Duffy.name")
+            {
+                userPasswordResetStatusId = UserPasswordResetStatus.LimitsReached;
+            }
             else
             {
                 userPasswordResetStatusId = UserPasswordResetStatus.InvalidEMailAddress;
@@ -1602,14 +1616,7 @@ namespace Eadent.Identity.Access
             }
             else if (eMailAddress == "Eamonn@Duffy.global")
             {
-                if (userPasswordResetCode == "000555")
-                {
-                    userPasswordResetStatusId = UserPasswordResetStatus.Success;
-                }
-                else
-                {
-                    userPasswordResetStatusId = UserPasswordResetStatus.InvalidResetCode;
-                }
+                userPasswordResetStatusId = UserPasswordResetStatus.Error;
             }
             else
             {

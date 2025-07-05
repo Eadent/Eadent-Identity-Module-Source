@@ -6,9 +6,10 @@
         Success = 1,
         InvalidEMailAddress = 2,
         NewRequest = 3,
-        InvalidResetCode = 4,
-        OutstandingRequest = 5,
-        ValidResetCode = 6,
+        OutstandingRequest = 4,
+        InvalidResetCode = 5,
+        LimitsReached = 6,
+        ValidResetCode = 7,
 
         InvalidNewPassword = 4,
         Aborted = 5,
