@@ -1618,6 +1618,10 @@ namespace Eadent.Identity.Access
             {
                 userPasswordResetStatusId = UserPasswordResetStatus.Error;
             }
+            else if (eMailAddress == "Eamonn@Duffy.name")
+            {
+                userPasswordResetStatusId = UserPasswordResetStatus.LimitsReached;
+            }
             else
             {
                 userPasswordResetStatusId = UserPasswordResetStatus.InvalidEMailAddress;
