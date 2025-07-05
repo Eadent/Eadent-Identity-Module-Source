@@ -1583,6 +1583,7 @@ namespace Eadent.Identity.Access
             return userPasswordResetStatusId;
         }
 
+        // TODO: If the Commit is Successful, Unlock the User Account if it was Locked Out.
         public async Task<UserPasswordResetStatus>
             CommitUserPasswordResetAsync(string eMailAddress, string userPasswordResetCode, string newPlainTextPassword, string userIpAddress, decimal googleReCaptchaScore, CancellationToken cancellationToken = default)
         {
