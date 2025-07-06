@@ -44,17 +44,26 @@
             public int RoleLevelPrivilegedThresholdInclusive { get; set; }
         }
 
+        public class PasswordResetSettings
+        {
+            public int ResetWindowDurationInMinutes { get; set; }
+
+            public byte RequestCodeLimit { get; set; }
+
+            public byte TryCodeLimit { get; set; }
+        }
+
         public class AccountSettings
         {
             public int SignInErrorLimit { get; set; }
 
-            public int SignInLockOutDurationSeconds { get; set; }
+            public int SignInLockOutDurationInSeconds { get; set; }
 
-            public int SessionExpirationDurationSeconds { get; set; }
-
-            public int PasswordResetExpirationDurationSeconds { get; set; }
+            public int SessionExpirationDurationInSeconds { get; set; }
 
             public string SignInUrl { get; set; }
+
+            public PasswordResetSettings PasswordReset { get; set; }
         }
 
         public class UserIdentitySettings

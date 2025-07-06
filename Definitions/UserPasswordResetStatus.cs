@@ -3,19 +3,15 @@
     public enum UserPasswordResetStatus : short
     {
         Error = 0,
-        Success = 1,
-        InvalidEMailAddress = 2,
-        NewRequest = 3,
-        OutstandingRequest = 4,
-        InvalidResetCode = 5,
-        LimitsReached = 6,
-        ValidResetCode = 7,
-
-        InvalidNewPassword = 4,
-        Aborted = 5,
-        TimedOutExpired = 6,
-        Closed = 7,
-        UserDisabled = 8,
+        InvalidEMailAddress = 1,
+        NewRequest = 2,
+        OutstandingRequest = 3,
+        InvalidResetCode = 4,
+        LimitsReached = 5,
+        ValidResetCode = 6,
+        UserDisabled = 7,
+        TimedOutExpired = 8,
+        InvalidNewPassword = 9,
         UserSoftDeleted = 100
     }
 }

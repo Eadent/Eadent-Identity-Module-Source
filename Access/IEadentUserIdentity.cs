@@ -42,7 +42,7 @@ namespace Eadent.Identity.Access
         Task<(UserPasswordResetStatus userPasswordResetStatusId, string displayName, string userPasswordResetCode)>
             BeginUserPasswordResetAsync(string eMailAddress, string userIpAddress, decimal googleReCaptchaScore, CancellationToken cancellationToken = default);
 
-        Task<(UserPasswordResetStatus userPasswordResetStatusId, string userPasswordResetCode)>
+        Task<(UserPasswordResetStatus userPasswordResetStatusId, string displayName, string userPasswordResetCode)>
             RequestNewUserPasswordResetCodeAsync(string eMailAddress, string userIpAddress, decimal googleReCaptchaScore, CancellationToken cancellationToken = default);
 
         Task<UserPasswordResetStatus>

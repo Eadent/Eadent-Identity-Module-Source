@@ -119,7 +119,7 @@ namespace Eadent.Identity.Access
                 ChangePasswordNextSignIn = false,
                 SignInErrorCount = 0,
                 SignInErrorLimit = EadentIdentitySettings.Instance.UserIdentity.Account.SignInErrorLimit,
-                SignInLockOutDurationSeconds = EadentIdentitySettings.Instance.UserIdentity.Account.SignInLockOutDurationSeconds,
+                SignInLockOutDurationInSeconds = EadentIdentitySettings.Instance.UserIdentity.Account.SignInLockOutDurationInSeconds,
                 SignInLockOutDateTimeUtc = null,
                 CreatedDateTimeUtc = utcNow,
                 LastUpdatedDateTimeUtc = null
@@ -171,12 +171,12 @@ namespace Eadent.Identity.Access
                 UserSessionToken = userSessionToken,
                 UserSessionGuid = Guid.NewGuid(),
                 UserSessionStatusId = userSessionStatusId,
-                UserSessionExpirationDurationSeconds = EadentIdentitySettings.Instance.UserIdentity.Account.SessionExpirationDurationSeconds,
+                UserSessionExpirationDurationInSeconds = EadentIdentitySettings.Instance.UserIdentity.Account.SessionExpirationDurationInSeconds,
                 EMailAddress = eMailAddress,
                 MobilePhoneNumber = userEntity?.MobilePhoneNumber,
                 UserIpAddress = userIpAddress,
                 SignInStatusId = signInStatusId,
-                UserId = userEntity?.UserId,
+                UserId = userEntity.UserId,
                 CreatedDateTimeUtc = utcNow,
                 LastUpdatedDateTimeUtc = utcNow
             };
@@ -250,7 +250,7 @@ namespace Eadent.Identity.Access
 
             // Just In Case of a Software or Database Administration Error, treat a null SignInLockOutDateTimeUtc as Lock Out Expired.
             if ((userEntity.SignInLockOutDateTimeUtc == null) ||
-                (userEntity.SignInLockOutDateTimeUtc.Value.AddSeconds(userEntity.SignInLockOutDurationSeconds) <= utcNow))
+                (userEntity.SignInLockOutDateTimeUtc.Value.AddSeconds(userEntity.SignInLockOutDurationInSeconds) <= utcNow))
             {
                 userEntity.SignInErrorCount = 0;
                 userEntity.SignInLockOutDateTimeUtc = null;
@@ -264,24 +264,6 @@ namespace Eadent.Identity.Access
             }
 
             return (userSessionStatusId, signInStatusId, previousUserSignInDateTimeUtc);
-        }
-
-        private UserPasswordResetEntity CreatePasswordReset(string resetToken, string eMailAddress, string userIpAddress, UserEntity userEntity, DateTime utcNow)
-        {
-            var passwordResetEntity = new UserPasswordResetEntity()
-            {
-                ResetToken = resetToken,
-                PasswordResetStatusId = PasswordResetStatus.Open,
-                ResetTokenRequestedDateTimeUtc = utcNow,
-                ResetTokenExpirationDurationSeconds = EadentIdentitySettings.Instance.UserIdentity.Account.PasswordResetExpirationDurationSeconds,
-                EMailAddress = eMailAddress,
-                UserIpAddress = userIpAddress,
-                UserId = userEntity?.UserId
-            };
-
-            UserPasswordResetsRepository.Update(passwordResetEntity);
-
-            return passwordResetEntity;
         }
 
         private DeleteUserStatus PerformSoftDelete(UserEntity userEntity, bool selfSoftDelete, DateTime utcNow)
@@ -509,9 +491,9 @@ namespace Eadent.Identity.Access
                             signInStatusId = SignInStatus.UserSoftDeleted;
                             break;
                     }
-                }
 
-                userSessionEntity = CreateUserSession(signInTypeId, userEntity, userSessionToken, userSessionStatusId, eMailAddress, userIpAddress, signInStatusId, utcNow);
+                    userSessionEntity = CreateUserSession(signInTypeId, userEntity, userSessionToken, userSessionStatusId, eMailAddress, userIpAddress, signInStatusId, utcNow);
+                }
 
                 Logger.LogInformation($"SignInTypeId: {signInTypeId} : SignInStatusId: {signInStatusId} : EMailAddress: {eMailAddress} : UserIpAddress: {userIpAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
 
@@ -530,7 +512,7 @@ namespace Eadent.Identity.Access
             return (signInStatusId, userSessionEntity, previousUserSignInDateTimeUtc);
         }
 
-        // NOTE: As of 29-June-2025, this method cannot be an asynchronous method because it is used in the constructor of the UserSession class.
+        // NOTE: As of 29-June-2025, this cannot be an asynchronous method because it is used in the constructor of the UserSession class.
         public (SessionStatus sessionStatusId, UserSessionEntity userSessionEntity) CheckAndUpdateUserSession(string userSessionToken, string userIpAddress)
         {
             var sessionStatusId = SessionStatus.Error;
@@ -558,7 +540,7 @@ namespace Eadent.Identity.Access
 
                         case UserSessionStatus.SignedIn:
 
-                            if (userSessionEntity.LastUpdatedDateTimeUtc.AddSeconds(userSessionEntity.UserSessionExpirationDurationSeconds) <= utcNow)
+                            if (userSessionEntity.LastUpdatedDateTimeUtc.AddSeconds(userSessionEntity.UserSessionExpirationDurationInSeconds) <= utcNow)
                             {
                                 userSessionEntity.UserSessionStatusId = UserSessionStatus.TimedOutExpired;
 
@@ -1214,6 +1196,7 @@ namespace Eadent.Identity.Access
             return deleteUserStatusId;
         }
 
+#if false
         public (UserPasswordResetRequestStatus passwordResetRequestStatusId, string resetToken, UserEntity userEntity) BeginUserPasswordReset(string eMailAddress, string userIpAddress, decimal googleReCaptchaScore)
         {
             var passwordResetRequestStatusId = UserPasswordResetRequestStatus.Error;
@@ -1493,6 +1476,7 @@ namespace Eadent.Identity.Access
 
             return (passwordResetRequestStatusId, userPasswordResetEntity);
         }
+#endif
 
         public async Task<(UserPasswordResetStatus userPasswordResetStatusId, string displayName, string userPasswordResetCode)>
             BeginUserPasswordResetAsync(string eMailAddress, string userIpAddress, decimal googleReCaptchaScore, CancellationToken cancellationToken = default)
@@ -1503,59 +1487,184 @@ namespace Eadent.Identity.Access
 
             string userPasswordResetCode = null;
 
-            if (eMailAddress == "Eamonn.Duffy@GMail.com")
-            {                 // For testing purposes, we can hard-code a user password reset code.
-                userPasswordResetStatusId = UserPasswordResetStatus.NewRequest;
-                userPasswordResetCode = "000049";
-            }
-            else if (eMailAddress == "Eamonn@Duffy.global")
-            {                 // For testing purposes, we can hard-code a user password reset code.
-                userPasswordResetStatusId = UserPasswordResetStatus.OutstandingRequest;
-                userPasswordResetCode = "000555";
-            }
-            else if (eMailAddress == "Eamonn@Duffy.name")
-            {                 // For testing purposes, we can hard-code a user password reset code.
-                userPasswordResetStatusId = UserPasswordResetStatus.NewRequest;
-                userPasswordResetCode = "000112";
-            }
-            else
+            try
             {
-                userPasswordResetStatusId = UserPasswordResetStatus.InvalidEMailAddress;
-                userPasswordResetCode = null;
+                DateTime utcNow = DateTime.UtcNow;
+
+                UserEntity userEntity = null;
+
+                UserPasswordResetEntity userPasswordResetEntity = await UserPasswordResetsRepository.GetLastOrDefaultAsync(entity => entity.EMailAddress == eMailAddress, entity => entity.UserPasswordResetId, cancellationToken);
+
+                if (userPasswordResetEntity == null)
+                {
+                    userEntity = await UsersRepository.GetFirstOrDefaultByEMailAddressIncludeRolesAsync(eMailAddress, cancellationToken);
+
+                    if (userEntity == null)
+                    {
+                        userPasswordResetStatusId = UserPasswordResetStatus.InvalidEMailAddress;
+                    }
+                    else
+                    {
+                        userPasswordResetStatusId = UserPasswordResetStatus.NewRequest;
+
+                        userPasswordResetCode = GenerateUserPasswordResetCode();
+                    }
+                }
+                else
+                {
+                    userEntity = await UsersRepository.GetAsync(userPasswordResetEntity.UserId, cancellationToken);
+
+                    if (userPasswordResetEntity.ResetFirstRequestedDateTimeUtc.AddSeconds(userPasswordResetEntity.ResetWindowDurationInSeconds) <= utcNow)
+                    {
+                        // The PasswordReset has Expired so New PasswordReset Request.
+                        userPasswordResetStatusId = UserPasswordResetStatus.NewRequest;
+
+                        userPasswordResetCode = GenerateUserPasswordResetCode();
+
+                        await UserPasswordResetsRepository.DeleteAsync(userPasswordResetEntity, cancellationToken);
+                    }
+                    else
+                    {
+                        userPasswordResetStatusId = UserPasswordResetStatus.OutstandingRequest;
+
+                        userPasswordResetCode = userPasswordResetEntity.PasswordResetCode;
+                    }
+                }
+
+                if (userEntity != null)
+                {
+                    displayName = userEntity.DisplayName;
+
+                    switch (userEntity.UserStatusId)
+                    {
+                        case UserStatus.Enabled:
+                        case UserStatus.SignInLockedOut:
+
+                            if (userPasswordResetStatusId == UserPasswordResetStatus.NewRequest)
+                            {
+                                userPasswordResetEntity = await CreatePasswordResetAsync(userPasswordResetCode, eMailAddress, userIpAddress, userEntity, utcNow, cancellationToken);
+                            }
+                            break;
+
+                        case UserStatus.Disabled:
+
+                            userPasswordResetStatusId = UserPasswordResetStatus.UserDisabled;
+                            break;
+
+                        case UserStatus.SoftDeleted:
+
+                            userPasswordResetStatusId = UserPasswordResetStatus.UserSoftDeleted;
+                            break;
+                    }
+                }
+
+                Logger.LogInformation($"UserPasswordResetStatusId: {userPasswordResetStatusId} : EMailAddress: {eMailAddress} : UserIpAddress: {userIpAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
+
+                CreateUserAudit(userEntity?.UserId, $"Password Reset Begin. UserPasswordResetStatusId: {userPasswordResetStatusId}", null, $"E-Mail Address: {eMailAddress}", userIpAddress, googleReCaptchaScore, utcNow);
+
+                await EadentUserIdentityDatabase.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception exception)
+            {
+                Logger.LogError(exception, "An Exception has occurred.");
+
+                userPasswordResetStatusId = UserPasswordResetStatus.Error;
             }
 
             return (userPasswordResetStatusId, displayName, userPasswordResetCode);
         }
 
-        public async Task<(UserPasswordResetStatus userPasswordResetStatusId, string userPasswordResetCode)>
+        public async Task<(UserPasswordResetStatus userPasswordResetStatusId, string displayName, string userPasswordResetCode)>
             RequestNewUserPasswordResetCodeAsync(string eMailAddress, string userIpAddress, decimal googleReCaptchaScore, CancellationToken cancellationToken = default)
         {
             UserPasswordResetStatus userPasswordResetStatusId = UserPasswordResetStatus.Error;
 
+            string displayName = null;
+
             string userPasswordResetCode = null;
 
-            if (eMailAddress == "Eamonn.Duffy@GMail.com")
-            {                 // For testing purposes, we can hard-code a user password reset code.
-                userPasswordResetStatusId = UserPasswordResetStatus.NewRequest;
-                userPasswordResetCode = "000049";
-            }
-            else if (eMailAddress == "Eamonn@Duffy.global")
-            {                 // For testing purposes, we can hard-code a user password reset code.
-                userPasswordResetStatusId = UserPasswordResetStatus.NewRequest;
-                userPasswordResetCode = "000555";
-            }
-            else if (eMailAddress == "Eamonn@Duffy.name")
-            {                 // For testing purposes, we can hard-code a user password reset code.
-                userPasswordResetStatusId = UserPasswordResetStatus.LimitsReached;
-                userPasswordResetCode = null;
-            }
-            else
+            try
             {
-                userPasswordResetStatusId = UserPasswordResetStatus.InvalidEMailAddress;
-                userPasswordResetCode = null;
+                DateTime utcNow = DateTime.UtcNow;
+
+                UserEntity userEntity = null;
+
+                UserPasswordResetEntity userPasswordResetEntity = await UserPasswordResetsRepository.GetLastOrDefaultAsync(entity => entity.EMailAddress == eMailAddress, entity => entity.UserPasswordResetId, cancellationToken);
+
+                if (userPasswordResetEntity == null)
+                {
+                    userPasswordResetStatusId = UserPasswordResetStatus.InvalidEMailAddress;
+                }
+                else
+                {
+                    if (userPasswordResetEntity.ResetFirstRequestedDateTimeUtc.AddSeconds(userPasswordResetEntity.ResetWindowDurationInSeconds) <= utcNow)
+                    {
+                        // The PasswordReset has Timed Out and Expired.
+                        userPasswordResetStatusId = UserPasswordResetStatus.TimedOutExpired;
+
+                        await UserPasswordResetsRepository.DeleteAsync(userPasswordResetEntity, cancellationToken);
+                    }
+                    else if (userPasswordResetEntity.RequestCodeCount >= userPasswordResetEntity.RequestCodeLimit)
+                    {
+                        // The PasswordReset has reached the Request Count Limit.
+                        userPasswordResetStatusId = UserPasswordResetStatus.LimitsReached;
+                    }
+                    else
+                    {
+                        userEntity = await UsersRepository.GetAsync(userPasswordResetEntity.UserId, cancellationToken);
+
+                        if (userEntity == null)
+                        {
+                            userPasswordResetStatusId = UserPasswordResetStatus.Error;
+                        }
+                        else
+                        {
+                            displayName = userEntity.DisplayName;
+
+                            switch (userEntity.UserStatusId)
+                            {
+                                case UserStatus.Enabled:
+                                case UserStatus.SignInLockedOut:
+
+                                    userPasswordResetStatusId = UserPasswordResetStatus.NewRequest;
+
+                                    userPasswordResetCode = GenerateUserPasswordResetCode();
+
+                                    userPasswordResetEntity.PasswordResetCode = userPasswordResetCode;
+                                    ++userPasswordResetEntity.RequestCodeCount;
+                                    userPasswordResetEntity.LastUpdatedDateTimeUtc = utcNow;
+
+                                    await UserPasswordResetsRepository.UpdateAsync(userPasswordResetEntity, cancellationToken);
+                                    break;
+
+                                case UserStatus.Disabled:
+
+                                    userPasswordResetStatusId = UserPasswordResetStatus.UserDisabled;
+                                    break;
+
+                                case UserStatus.SoftDeleted:
+
+                                    userPasswordResetStatusId = UserPasswordResetStatus.UserSoftDeleted;
+                                    break;
+                            }
+                        }
+                    }
+                }
+
+                Logger.LogInformation($"UserPasswordResetStatusId: {userPasswordResetStatusId} : EMailAddress: {eMailAddress} : UserIpAddress: {userIpAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
+
+                CreateUserAudit(userEntity?.UserId, $"Password Reset Request New Reset Code. UserPasswordResetStatusId: {userPasswordResetStatusId}", null, $"E-Mail Address: {eMailAddress}", userIpAddress, googleReCaptchaScore, utcNow);
+
+                await EadentUserIdentityDatabase.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception exception)
+            {
+                Logger.LogError(exception, "An Exception has occurred.");
+
+                userPasswordResetStatusId = UserPasswordResetStatus.Error;
             }
 
-            return (userPasswordResetStatusId, userPasswordResetCode);
+            return (userPasswordResetStatusId, displayName, userPasswordResetCode);
         }
 
         public async Task<UserPasswordResetStatus>
@@ -1563,68 +1672,192 @@ namespace Eadent.Identity.Access
         {
             UserPasswordResetStatus userPasswordResetStatusId = UserPasswordResetStatus.Error;
 
-            if (eMailAddress == "Eamonn.Duffy@GMail.com")
+            try
             {
-                if (userPasswordResetCode == "000049")
+                DateTime utcNow = DateTime.UtcNow;
+
+                UserEntity userEntity = null;
+
+                UserPasswordResetEntity userPasswordResetEntity = await UserPasswordResetsRepository.GetLastOrDefaultAsync(entity => entity.EMailAddress == eMailAddress, entity => entity.UserPasswordResetId, cancellationToken);
+
+                if (userPasswordResetEntity == null)
                 {
-                    userPasswordResetStatusId = UserPasswordResetStatus.ValidResetCode;
+                    userPasswordResetStatusId = UserPasswordResetStatus.InvalidEMailAddress;
                 }
                 else
                 {
-                    userPasswordResetStatusId = UserPasswordResetStatus.InvalidResetCode;
+                    if (userPasswordResetEntity.ResetFirstRequestedDateTimeUtc.AddSeconds(userPasswordResetEntity.ResetWindowDurationInSeconds) <= utcNow)
+                    {
+                        // The PasswordReset has Timed Out and Expired.
+                        userPasswordResetStatusId = UserPasswordResetStatus.TimedOutExpired;
+
+                        await UserPasswordResetsRepository.DeleteAsync(userPasswordResetEntity, cancellationToken);
+                    }
+                    else if (userPasswordResetEntity.TryCodeCount >= userPasswordResetEntity.TryCodeLimit)
+                    {
+                        // The PasswordReset has reached the Try Count Limit.
+                        userPasswordResetStatusId = UserPasswordResetStatus.LimitsReached;
+                    }
+                    else
+                    {
+                        userEntity = await UsersRepository.GetAsync(userPasswordResetEntity.UserId, cancellationToken);
+
+                        if (userEntity == null)
+                        {
+                            userPasswordResetStatusId = UserPasswordResetStatus.Error;
+                        }
+                        else
+                        {
+                            switch (userEntity.UserStatusId)
+                            {
+                                case UserStatus.Enabled:
+                                case UserStatus.SignInLockedOut:
+
+                                    if (userPasswordResetCode == userPasswordResetEntity.PasswordResetCode)
+                                    {
+                                        userPasswordResetStatusId = UserPasswordResetStatus.ValidResetCode;
+                                    }
+                                    else
+                                    {
+                                        userPasswordResetStatusId = UserPasswordResetStatus.InvalidResetCode;
+                                    }
+
+                                    ++userPasswordResetEntity.TryCodeCount;
+                                    userPasswordResetEntity.LastUpdatedDateTimeUtc = utcNow;
+
+                                    await UserPasswordResetsRepository.UpdateAsync(userPasswordResetEntity, cancellationToken);
+
+                                    if (userPasswordResetEntity.TryCodeCount >= userPasswordResetEntity.TryCodeLimit)
+                                    {
+                                        // The PasswordReset has reached the Try Count Limit.
+                                        userPasswordResetStatusId = UserPasswordResetStatus.LimitsReached;
+                                    }
+                                    break;
+
+                                case UserStatus.Disabled:
+
+                                    userPasswordResetStatusId = UserPasswordResetStatus.UserDisabled;
+                                    break;
+
+                                case UserStatus.SoftDeleted:
+
+                                    userPasswordResetStatusId = UserPasswordResetStatus.UserSoftDeleted;
+                                    break;
+                            }
+                        }
+                    }
                 }
+
+                Logger.LogInformation($"UserPasswordResetStatusId: {userPasswordResetStatusId} : EMailAddress: {eMailAddress} : UserIpAddress: {userIpAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
+
+                CreateUserAudit(userEntity?.UserId, $"Password Reset Try Reset Code. UserPasswordResetStatusId: {userPasswordResetStatusId}", null, $"E-Mail Address: {eMailAddress}", userIpAddress, googleReCaptchaScore, utcNow);
+
+                await EadentUserIdentityDatabase.SaveChangesAsync(cancellationToken);
             }
-            else if (eMailAddress == "Eamonn@Duffy.global")
+            catch (Exception exception)
             {
-                if (userPasswordResetCode == "000555")
-                {
-                    userPasswordResetStatusId = UserPasswordResetStatus.ValidResetCode;
-                }
-                else
-                {
-                    userPasswordResetStatusId = UserPasswordResetStatus.InvalidResetCode;
-                }
-            }
-            else if (eMailAddress == "Eamonn@Duffy.name")
-            {
-                userPasswordResetStatusId = UserPasswordResetStatus.LimitsReached;
-            }
-            else
-            {
-                userPasswordResetStatusId = UserPasswordResetStatus.InvalidEMailAddress;
+                Logger.LogError(exception, "An Exception has occurred.");
+
+                userPasswordResetStatusId = UserPasswordResetStatus.Error;
             }
 
             return userPasswordResetStatusId;
         }
 
-        // TODO: If the Commit is Successful, Unlock the User Account if it was Locked Out.
         public async Task<UserPasswordResetStatus>
             CommitUserPasswordResetAsync(string eMailAddress, string userPasswordResetCode, string newPlainTextPassword, string userIpAddress, decimal googleReCaptchaScore, CancellationToken cancellationToken = default)
         {
+            // TODO: Validate New Plain Text Password.
+
             UserPasswordResetStatus userPasswordResetStatusId = UserPasswordResetStatus.Error;
 
-            if (eMailAddress == "Eamonn.Duffy@GMail.com")
+            try
             {
-                if (userPasswordResetCode == "000049")
+                DateTime utcNow = DateTime.UtcNow;
+
+                UserEntity userEntity = null;
+
+                UserPasswordResetEntity userPasswordResetEntity = await UserPasswordResetsRepository.GetLastOrDefaultAsync(entity => entity.EMailAddress == eMailAddress, entity => entity.UserPasswordResetId, cancellationToken);
+
+                if (userPasswordResetEntity == null)
                 {
-                    userPasswordResetStatusId = UserPasswordResetStatus.Success;
+                    userPasswordResetStatusId = UserPasswordResetStatus.InvalidEMailAddress;
                 }
                 else
                 {
-                    userPasswordResetStatusId = UserPasswordResetStatus.InvalidResetCode;
+                    if (userPasswordResetEntity.ResetFirstRequestedDateTimeUtc.AddSeconds(userPasswordResetEntity.ResetWindowDurationInSeconds) <= utcNow)
+                    {
+                        // The PasswordReset has Timed Out and Expired.
+                        userPasswordResetStatusId = UserPasswordResetStatus.TimedOutExpired;
+
+                        await UserPasswordResetsRepository.DeleteAsync(userPasswordResetEntity, cancellationToken);
+                    }
+                    else
+                    {
+                        userEntity = await UsersRepository.GetAsync(userPasswordResetEntity.UserId, cancellationToken);
+
+                        if (userEntity == null)
+                        {
+                            userPasswordResetStatusId = UserPasswordResetStatus.Error;
+                        }
+                        else
+                        {
+                            switch (userEntity.UserStatusId)
+                            {
+                                case UserStatus.Enabled:
+                                case UserStatus.SignInLockedOut:
+
+                                    if (userPasswordResetCode == userPasswordResetEntity.PasswordResetCode)
+                                    {
+                                        userPasswordResetStatusId = UserPasswordResetStatus.ValidResetCode;
+
+                                        string newHashedPassword = HashUserPasswordHMACSHA512(newPlainTextPassword, userEntity.PasswordHashIterationCount, userEntity.PasswordHashNumDerivedKeyBytes, userEntity.PasswordSaltGuid);
+
+                                        userEntity.SignInErrorCount = 0;
+                                        userEntity.SignInLockOutDateTimeUtc = null;
+                                        userEntity.UserStatusId = UserStatus.Enabled;
+                                        userEntity.PasswordVersionId = PasswordVersion.HMACSHA512;
+                                        userEntity.Password = newHashedPassword;
+                                        userEntity.PasswordLastUpdatedDateTimeUtc = utcNow;
+
+                                        await UsersRepository.UpdateAsync(userEntity, cancellationToken);
+                                        await UserPasswordResetsRepository.DeleteAsync(userPasswordResetEntity, cancellationToken);
+                                    }
+                                    else
+                                    {
+                                        userPasswordResetStatusId = UserPasswordResetStatus.InvalidResetCode;
+                                        userPasswordResetEntity.LastUpdatedDateTimeUtc = utcNow;
+
+                                        await UserPasswordResetsRepository.UpdateAsync(userPasswordResetEntity, cancellationToken);
+                                    }
+
+                                    break;
+
+                                case UserStatus.Disabled:
+
+                                    userPasswordResetStatusId = UserPasswordResetStatus.UserDisabled;
+                                    break;
+
+                                case UserStatus.SoftDeleted:
+
+                                    userPasswordResetStatusId = UserPasswordResetStatus.UserSoftDeleted;
+                                    break;
+                            }
+                        }
+                    }
                 }
+
+                Logger.LogInformation($"UserPasswordResetStatusId: {userPasswordResetStatusId} : EMailAddress: {eMailAddress} : UserIpAddress: {userIpAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
+
+                CreateUserAudit(userEntity?.UserId, $"Password Reset Commit. UserPasswordResetStatusId: {userPasswordResetStatusId}", null, $"E-Mail Address: {eMailAddress}", userIpAddress, googleReCaptchaScore, utcNow);
+
+                await EadentUserIdentityDatabase.SaveChangesAsync(cancellationToken);
             }
-            else if (eMailAddress == "Eamonn@Duffy.global")
+            catch (Exception exception)
             {
+                Logger.LogError(exception, "An Exception has occurred.");
+
                 userPasswordResetStatusId = UserPasswordResetStatus.Error;
-            }
-            else if (eMailAddress == "Eamonn@Duffy.name")
-            {
-                userPasswordResetStatusId = UserPasswordResetStatus.LimitsReached;
-            }
-            else
-            {
-                userPasswordResetStatusId = UserPasswordResetStatus.InvalidEMailAddress;
             }
 
             return userPasswordResetStatusId;
@@ -1634,7 +1867,8 @@ namespace Eadent.Identity.Access
         //               If we get as far as Entering and Confirming a New Password, then we should delete the Password Reset Code?
         //               Is there any risk to Deleting a Password Reset Code if we Cancel the Password Reset at the Enter New Password stage?
         //               Basically, the Password Reset Code was notionally Successful and got us to the Enter New Password stage so it has been "used"?
-        //               What if a User moves away from the Page without entering a New Password? The Password Reset Code is still valid? So does Roll Back make sense?
+        //               What if a User moves away from the Page without entering a New Password? The Password Reset Code is still valid?
+        //               So does Roll Back make sense?
         //               It may only be helpful to stop the Database Table from filling up with expired Password Reset Codes?
         //               But then, we should probably just delete all Password Reset Codes that are older than a certain age?
         //               Incidentally, do we need an "PasswordResetCodeUsed" Status?
@@ -1644,31 +1878,62 @@ namespace Eadent.Identity.Access
         {
             UserPasswordResetStatus userPasswordResetStatusId = UserPasswordResetStatus.Error;
 
-            if (eMailAddress == "Eamonn.Duffy@GMail.com")
+            try
             {
-                if (userPasswordResetCode == "000049")
+                DateTime utcNow = DateTime.UtcNow;
+
+                UserEntity userEntity = null;
+
+                UserPasswordResetEntity userPasswordResetEntity = await UserPasswordResetsRepository.GetLastOrDefaultAsync(entity => entity.EMailAddress == eMailAddress, entity => entity.UserPasswordResetId, cancellationToken);
+
+                if (userPasswordResetEntity == null)
                 {
-                    userPasswordResetStatusId = UserPasswordResetStatus.Success;
+                    userPasswordResetStatusId = UserPasswordResetStatus.InvalidEMailAddress;
                 }
                 else
                 {
-                    userPasswordResetStatusId = UserPasswordResetStatus.InvalidResetCode;
+                    if (userPasswordResetEntity.ResetFirstRequestedDateTimeUtc.AddSeconds(userPasswordResetEntity.ResetWindowDurationInSeconds) <= utcNow)
+                    {
+                        // The PasswordReset has Timed Out and Expired.
+                        userPasswordResetStatusId = UserPasswordResetStatus.TimedOutExpired;
+
+                        await UserPasswordResetsRepository.DeleteAsync(userPasswordResetEntity, cancellationToken);
+                    }
+                    else
+                    {
+                        userEntity = await UsersRepository.GetAsync(userPasswordResetEntity.UserId, cancellationToken);
+
+                        if (userEntity == null)
+                        {
+                            userPasswordResetStatusId = UserPasswordResetStatus.Error;
+                        }
+                        else
+                        {
+                            if (userPasswordResetCode == userPasswordResetEntity.PasswordResetCode)
+                            {
+                                userPasswordResetStatusId = UserPasswordResetStatus.ValidResetCode;
+
+                                await UserPasswordResetsRepository.DeleteAsync(userPasswordResetEntity, cancellationToken);
+                            }
+                            else
+                            {
+                                userPasswordResetStatusId = UserPasswordResetStatus.InvalidResetCode;
+                            }
+                        }
+                    }
                 }
+
+                Logger.LogInformation($"UserPasswordResetStatusId: {userPasswordResetStatusId} : EMailAddress: {eMailAddress} : UserIpAddress: {userIpAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
+
+                CreateUserAudit(userEntity?.UserId, $"Password Reset Roll Back. UserPasswordResetStatusId: {userPasswordResetStatusId}", null, $"E-Mail Address: {eMailAddress}", userIpAddress, googleReCaptchaScore, utcNow);
+
+                await EadentUserIdentityDatabase.SaveChangesAsync(cancellationToken);
             }
-            else if (eMailAddress == "Eamonn@Duffy.global")
+            catch (Exception exception)
             {
-                if (userPasswordResetCode == "000555")
-                {
-                    userPasswordResetStatusId = UserPasswordResetStatus.Success;
-                }
-                else
-                {
-                    userPasswordResetStatusId = UserPasswordResetStatus.InvalidResetCode;
-                }
-            }
-            else
-            {
-                userPasswordResetStatusId = UserPasswordResetStatus.InvalidEMailAddress;
+                Logger.LogError(exception, "An Exception has occurred.");
+
+                userPasswordResetStatusId = UserPasswordResetStatus.Error;
             }
 
             return userPasswordResetStatusId;
@@ -1743,6 +2008,41 @@ namespace Eadent.Identity.Access
             }
 
             return userEntity;
+        }
+
+        // Courtesy of Copilot.
+        private string GenerateUserPasswordResetCode()
+        {
+            // Generate a random integer between 0 and 999999 (inclusive).
+            var randomNumber = RandomNumberGenerator.GetInt32(0, 1_000_000);
+
+            // Format as a 6-digit, zero-padded string.
+            return randomNumber.ToString("D6");
+        }
+
+        private async Task<UserPasswordResetEntity> CreatePasswordResetAsync(string userPasswordResetCode, string eMailAddress, string userIpAddress, UserEntity userEntity, DateTime utcNow, CancellationToken cancellationToken)
+        {
+            var passwordResetSettings = EadentIdentitySettings.Instance.UserIdentity.Account.PasswordReset;
+
+            var userPasswordResetEntity = new UserPasswordResetEntity()
+            {
+                UserId = userEntity.UserId,
+                EMailAddress = eMailAddress,
+                PasswordResetCode = userPasswordResetCode,
+                ResetFirstRequestedDateTimeUtc = utcNow,
+                ResetWindowDurationInSeconds = passwordResetSettings.ResetWindowDurationInMinutes * 60,
+                RequestCodeCount = 0,
+                RequestCodeLimit = passwordResetSettings.RequestCodeLimit,
+                TryCodeCount = 0,
+                TryCodeLimit = passwordResetSettings.TryCodeLimit,
+                UserIpAddress = userIpAddress,
+                CreatedDateTimeUtc = utcNow,
+                LastUpdatedDateTimeUtc = null
+            };
+
+            await UserPasswordResetsRepository.CreateAsync(userPasswordResetEntity, cancellationToken);
+
+            return userPasswordResetEntity;
         }
     }
 }

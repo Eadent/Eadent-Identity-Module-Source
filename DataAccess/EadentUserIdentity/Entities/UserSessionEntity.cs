@@ -19,7 +19,7 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Entities
 
         public UserSessionStatus UserSessionStatusId { get; set; }
 
-        public int UserSessionExpirationDurationSeconds { get; set; }
+        public int UserSessionExpirationDurationInSeconds { get; set; }
 
         public string EMailAddress { get; set; }
 

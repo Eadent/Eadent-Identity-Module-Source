@@ -51,7 +51,7 @@ namespace Eadent.Identity.Access
                 case SignInStatus.UserLockedOut:
 
                     responseDto.SignInLockOutDateTimeUtc = userSessionEntity.User.SignInLockOutDateTimeUtc;
-                    responseDto.SignInLockOutDurationSeconds = userSessionEntity.User.SignInLockOutDurationSeconds;
+                    responseDto.SignInLockOutDurationSeconds = userSessionEntity.User.SignInLockOutDurationInSeconds;
                     responseDto.Set((long)CommonDeveloperCode.UserLockedOut, "User Is Locked Out.");
                     break;
 

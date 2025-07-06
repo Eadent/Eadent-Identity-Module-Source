@@ -11,24 +11,28 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Entities
         [Key]
         public long UserPasswordResetId { get; set; }
 
-        public PasswordResetStatus PasswordResetStatusId { get; set; }
-
-        public string ResetToken { get; set; }
-
-        public DateTime ResetTokenRequestedDateTimeUtc { get; set; }
-
-        public int ResetTokenExpirationDurationSeconds { get; set; }
+        public long UserId { get; set; }
 
         public string EMailAddress { get; set; }
 
-        public string UserIpAddress { get; set; }
+        public string PasswordResetCode { get; set; }
 
-        public long? UserId { get; set; }
+        public DateTime ResetFirstRequestedDateTimeUtc { get; set; }
+
+        public int ResetWindowDurationInSeconds { get; set; }
+
+        public byte RequestCodeCount { get; set; }
+
+        public byte RequestCodeLimit { get; set; }
+
+        public byte TryCodeCount { get; set; }
+
+        public byte TryCodeLimit { get; set; }
+
+        public string UserIpAddress { get; set; }
 
         public DateTime CreatedDateTimeUtc { get; set; }
 
         public DateTime? LastUpdatedDateTimeUtc { get; set; }
-
-        public virtual UserEntity User { get; set; }
     }
 }
