@@ -53,50 +53,6 @@ namespace Eadent.Identity.Access
             UserPasswordResetsRepository = userPasswordResetsRepository;
         }
 
-        private string HashSHA512(string source)
-        {
-            SHA512 sha512 = SHA512.Create();
-
-            byte[] bytes = Encoding.Unicode.GetBytes(source);
-
-            byte[] hash = sha512.ComputeHash(bytes);
-
-            return Convert.ToBase64String(hash);
-        }
-
-        private string HashUserPasswordHMACSHA512(string plainTextPassword, int passwordHashIterationCount, int passwordHashNumDerivedKeyBytes, Guid saltGuid)
-        {
-            string hashedPassword = null;
-
-            var settings = EadentIdentitySettings.Instance.UserIdentity.Security.Hasher;
-
-            byte[] salt = Encoding.Unicode.GetBytes($"{settings.PasswordSalt}-{saltGuid}");
-
-            var derivedKey = KeyDerivation.Pbkdf2(plainTextPassword, salt, KeyDerivationPrf.HMACSHA512, passwordHashIterationCount, passwordHashNumDerivedKeyBytes);
-
-            hashedPassword = Convert.ToBase64String(derivedKey);
-
-            return hashedPassword;
-        }
-
-        private UserAuditEntity CreateUserAudit(long? userId, string description, string oldValue, string newValue, string userIpAddress, decimal? googleReCaptchaScore, DateTime utcNow)
-        {
-            var userAuditEntity = new UserAuditEntity()
-            {
-                UserId = userId,
-                Activity = description,
-                OldValue = oldValue,
-                NewValue = newValue,
-                UserIpAddress = userIpAddress,
-                GoogleReCaptchaScore = googleReCaptchaScore,
-                CreatedDateTimeUtc = utcNow
-            };
-
-            UserAuditsRepository.Create(userAuditEntity);
-
-            return userAuditEntity;
-        }
-
         public async Task<(RegisterUserStatus registerUserStatusId, UserEntity userEntity)>
             RegisterUserAsync(int createdByApplicationId, string userGuidString, Role roleId, string displayName, string eMailAddress, string mobilePhoneNumber, string plainTextPassword, string userIpAddress, decimal? googleReCaptchaScore, CancellationToken cancellationToken)
         {
@@ -240,7 +196,7 @@ namespace Eadent.Identity.Access
             {
                 Logger.LogError(exception, "An Exception has occurred.");
 
-                EadentUserIdentityDatabase.RollbackTransaction();
+                await EadentUserIdentityDatabase.RollbackTransactionAsync(cancellationToken);
             }
 
             return (signInStatusId, userSessionEntity, previousUserSignInDateTimeUtc);
@@ -1477,6 +1433,32 @@ namespace Eadent.Identity.Access
 
             // Format as a 6-digit, zero-padded string.
             return randomNumber.ToString("D6");
+        }
+
+        private string HashSHA512(string source)
+        {
+            SHA512 sha512 = SHA512.Create();
+
+            byte[] bytes = Encoding.Unicode.GetBytes(source);
+
+            byte[] hash = sha512.ComputeHash(bytes);
+
+            return Convert.ToBase64String(hash);
+        }
+
+        private string HashUserPasswordHMACSHA512(string plainTextPassword, int passwordHashIterationCount, int passwordHashNumDerivedKeyBytes, Guid saltGuid)
+        {
+            string hashedPassword = null;
+
+            var settings = EadentIdentitySettings.Instance.UserIdentity.Security.Hasher;
+
+            byte[] salt = Encoding.Unicode.GetBytes($"{settings.PasswordSalt}-{saltGuid}");
+
+            var derivedKey = KeyDerivation.Pbkdf2(plainTextPassword, salt, KeyDerivationPrf.HMACSHA512, passwordHashIterationCount, passwordHashNumDerivedKeyBytes);
+
+            hashedPassword = Convert.ToBase64String(derivedKey);
+
+            return hashedPassword;
         }
 
         private async Task<UserEntity> CreateUserAsync(int createdByApplicationId, string userGuidString, string displayName, string eMailAddress, string mobilePhoneNumber, string plainTextPassword, DateTime utcNow, CancellationToken cancellationToken)
