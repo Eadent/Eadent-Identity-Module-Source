@@ -217,7 +217,7 @@ namespace Eadent.Identity.Access
                 {
                     ++userEntity.SignInErrorCount;
 
-                    if (userEntity.SignInErrorCount > userEntity.SignInErrorLimit)
+                    if (userEntity.SignInErrorCount >= userEntity.SignInErrorLimit)
                     {
                         signInStatusId = SignInStatus.UserLockedOut;
 
