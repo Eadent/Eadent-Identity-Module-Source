@@ -27,6 +27,9 @@ namespace Eadent.Identity.Access
 
         DeleteUserStatus HardDeleteUser(string userSessionToken, Guid userGuid, string userIpAddress);
 
+#if false
+        // TODO: Remove this section eventually.
+
         (UserPasswordResetRequestStatus passwordResetRequestStatusId, string resetToken, UserEntity userEntity) BeginUserPasswordReset(string eMailAddress, string userIpAddress, decimal googleReCaptchaScore);
 
         (UserPasswordResetRequestStatus passwordResetRequestStatusId, UserPasswordResetEntity passwordResetEntity) CheckAndUpdateUserPasswordReset(string resetToken, string userIpAddress);
@@ -34,6 +37,7 @@ namespace Eadent.Identity.Access
         (UserPasswordResetRequestStatus passwordResetRequestStatusId, UserPasswordResetEntity passwordResetEntity) CommitUserPasswordReset(string resetToken, string newPlainTextPassword, string userIpAddress, decimal googleReCaptchaScore);
 
         (UserPasswordResetRequestStatus passwordResetRequestStatusId, UserPasswordResetEntity passwordResetEntity) AbortUserPasswordReset(string resetToken, string userIpAddress);
+#endif
 
         Task<(UserPasswordResetStatus userPasswordResetStatusId, string displayName, string userPasswordResetCode)>
             BeginUserPasswordResetAsync(string eMailAddress, string userIpAddress, decimal googleReCaptchaScore, CancellationToken cancellationToken = default);
