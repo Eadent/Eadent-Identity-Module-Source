@@ -43,8 +43,8 @@ namespace Eadent.Identity.Access
             RollBackUserPasswordResetAsync(string eMailAddress, string userPasswordResetCode, string userIpAddress, decimal googleReCaptchaScore, CancellationToken cancellationToken = default);
 
         // The following are Administration methods that should not be used by the general public.
-        bool AdminDoesUserExist(string eMailAddress);
+        Task<bool> AdminDoesUserExistAsync(string eMailAddress, CancellationToken cancellationToken = default);
 
-        UserEntity AdminForceUserPasswordChange(string eMailAddress, Guid userGuid, string newPlainTextPassword, string userIpAddress, decimal googleReCaptchaScore);
+        Task<UserEntity> AdminForceUserPasswordChangeAsync(string eMailAddress, Guid userGuid, string newPlainTextPassword, string userIpAddress, decimal googleReCaptchaScore, CancellationToken cancellationToken = default);
     }
 }

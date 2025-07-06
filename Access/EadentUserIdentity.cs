@@ -1278,7 +1278,7 @@ namespace Eadent.Identity.Access
 
                 Logger.LogInformation($"UserPasswordResetStatusId: {userPasswordResetStatusId} : EMailAddress: {eMailAddress} : UserIpAddress: {userIpAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
 
-                CreateUserAudit(userEntity?.UserId, $"Password Reset Begin. UserPasswordResetStatusId: {userPasswordResetStatusId}", null, $"E-Mail Address: {eMailAddress}", userIpAddress, googleReCaptchaScore, utcNow);
+                await CreateUserAuditAsync(userEntity?.UserId, $"Password Reset Begin. UserPasswordResetStatusId: {userPasswordResetStatusId}", null, $"E-Mail Address: {eMailAddress}", userIpAddress, googleReCaptchaScore, utcNow, cancellationToken);
 
                 await EadentUserIdentityDatabase.SaveChangesAsync(cancellationToken);
             }
@@ -1371,7 +1371,7 @@ namespace Eadent.Identity.Access
 
                 Logger.LogInformation($"UserPasswordResetStatusId: {userPasswordResetStatusId} : EMailAddress: {eMailAddress} : UserIpAddress: {userIpAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
 
-                CreateUserAudit(userEntity?.UserId, $"Password Reset Request New Reset Code. UserPasswordResetStatusId: {userPasswordResetStatusId}", null, $"E-Mail Address: {eMailAddress}", userIpAddress, googleReCaptchaScore, utcNow);
+                await CreateUserAuditAsync(userEntity?.UserId, $"Password Reset Request New Reset Code. UserPasswordResetStatusId: {userPasswordResetStatusId}", null, $"E-Mail Address: {eMailAddress}", userIpAddress, googleReCaptchaScore, utcNow, cancellationToken);
 
                 await EadentUserIdentityDatabase.SaveChangesAsync(cancellationToken);
             }
@@ -1468,7 +1468,7 @@ namespace Eadent.Identity.Access
 
                 Logger.LogInformation($"UserPasswordResetStatusId: {userPasswordResetStatusId} : EMailAddress: {eMailAddress} : UserIpAddress: {userIpAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
 
-                CreateUserAudit(userEntity?.UserId, $"Password Reset Try Reset Code. UserPasswordResetStatusId: {userPasswordResetStatusId}", null, $"E-Mail Address: {eMailAddress}", userIpAddress, googleReCaptchaScore, utcNow);
+                await CreateUserAuditAsync(userEntity?.UserId, $"Password Reset Try Reset Code. UserPasswordResetStatusId: {userPasswordResetStatusId}", null, $"E-Mail Address: {eMailAddress}", userIpAddress, googleReCaptchaScore, utcNow, cancellationToken);
 
                 await EadentUserIdentityDatabase.SaveChangesAsync(cancellationToken);
             }
@@ -1567,7 +1567,7 @@ namespace Eadent.Identity.Access
 
                 Logger.LogInformation($"UserPasswordResetStatusId: {userPasswordResetStatusId} : EMailAddress: {eMailAddress} : UserIpAddress: {userIpAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
 
-                CreateUserAudit(userEntity?.UserId, $"Password Reset Commit. UserPasswordResetStatusId: {userPasswordResetStatusId}", null, $"E-Mail Address: {eMailAddress}", userIpAddress, googleReCaptchaScore, utcNow);
+                await CreateUserAuditAsync(userEntity?.UserId, $"Password Reset Commit. UserPasswordResetStatusId: {userPasswordResetStatusId}", null, $"E-Mail Address: {eMailAddress}", userIpAddress, googleReCaptchaScore, utcNow, cancellationToken);
 
                 await EadentUserIdentityDatabase.SaveChangesAsync(cancellationToken);
             }
@@ -1643,7 +1643,7 @@ namespace Eadent.Identity.Access
 
                 Logger.LogInformation($"UserPasswordResetStatusId: {userPasswordResetStatusId} : EMailAddress: {eMailAddress} : UserIpAddress: {userIpAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
 
-                CreateUserAudit(userEntity?.UserId, $"Password Reset Roll Back. UserPasswordResetStatusId: {userPasswordResetStatusId}", null, $"E-Mail Address: {eMailAddress}", userIpAddress, googleReCaptchaScore, utcNow);
+                await CreateUserAuditAsync(userEntity?.UserId, $"Password Reset Roll Back. UserPasswordResetStatusId: {userPasswordResetStatusId}", null, $"E-Mail Address: {eMailAddress}", userIpAddress, googleReCaptchaScore, utcNow, cancellationToken);
 
                 await EadentUserIdentityDatabase.SaveChangesAsync(cancellationToken);
             }
@@ -1659,13 +1659,13 @@ namespace Eadent.Identity.Access
 
         // The following are Administration methods that should not be used by the general public.
 
-        public bool AdminDoesUserExist(string eMailAddress)
+        public async Task<bool> AdminDoesUserExistAsync(string eMailAddress, CancellationToken cancellationToken)
         {
             bool userExists = false;
 
             try
             {
-                UserEntity userEntity = UsersRepository.GetFirstOrDefaultByEMailAddressIncludeRoles(eMailAddress);
+                UserEntity userEntity = await UsersRepository.GetFirstOrDefaultByEMailAddressIncludeRolesAsync(eMailAddress, cancellationToken);
 
                 if (userEntity != null)
                 {
@@ -1680,7 +1680,7 @@ namespace Eadent.Identity.Access
             return userExists;
         }
 
-        public UserEntity AdminForceUserPasswordChange(string eMailAddress, Guid userGuid, string newPlainTextPassword, string userIpAddress, decimal googleReCaptchaScore)
+        public async Task<UserEntity> AdminForceUserPasswordChangeAsync(string eMailAddress, Guid userGuid, string newPlainTextPassword, string userIpAddress, decimal googleReCaptchaScore, CancellationToken cancellationToken)
         {
             // TODO: Validate New Plain Text Password.
 
@@ -1693,7 +1693,7 @@ namespace Eadent.Identity.Access
 
             try
             {
-                userEntity = UsersRepository.GetFirstOrDefaultByEMailAddressAndUserGuidIncludeRoles(eMailAddress, userGuid);
+                userEntity = await UsersRepository.GetFirstOrDefaultByEMailAddressAndUserGuidIncludeRolesAsync(eMailAddress, userGuid, cancellationToken);
 
                 if (userEntity != null)
                 {
@@ -1703,20 +1703,20 @@ namespace Eadent.Identity.Access
                     userEntity.Password = newHashedPassword;
                     userEntity.PasswordLastUpdatedDateTimeUtc = utcNow;
 
-                    UsersRepository.Update(userEntity);
+                    await UsersRepository.UpdateAsync(userEntity, cancellationToken);
 
                     Logger.LogInformation($"AdminForceUserPasswordChange: Success : EMailAddress: {eMailAddress} : UserGuid: {userGuid} : UserIpAddress: {userIpAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
 
-                    CreateUserAudit(userEntity?.UserId, $"Force User Password Change. Success : EMailAddress: {eMailAddress} : UserGuid: {userGuid}", null, null, userIpAddress, googleReCaptchaScore, utcNow);
+                    await CreateUserAuditAsync(userEntity?.UserId, $"Force User Password Change. Success : EMailAddress: {eMailAddress} : UserGuid: {userGuid}", null, null, userIpAddress, googleReCaptchaScore, utcNow, cancellationToken);
                 }
                 else
                 {
                     Logger.LogInformation($"AdminForceUserPasswordChange: Error : EMailAddress: {eMailAddress} : UserGuid: {userGuid} : UserIpAddress: {userIpAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
 
-                    CreateUserAudit(userEntity?.UserId, $"Force User Password Change. Error : EMailAddress: {eMailAddress} : UserGuid: {userGuid}", null, null, userIpAddress, googleReCaptchaScore, utcNow);
+                    await CreateUserAuditAsync(userEntity?.UserId, $"Force User Password Change. Error : EMailAddress: {eMailAddress} : UserGuid: {userGuid}", null, null, userIpAddress, googleReCaptchaScore, utcNow, cancellationToken);
                 }
 
-                EadentUserIdentityDatabase.SaveChanges();
+                await EadentUserIdentityDatabase.SaveChangesAsync(cancellationToken);
             }
             catch (Exception exception)
             {
@@ -1762,5 +1762,24 @@ namespace Eadent.Identity.Access
 
             return userPasswordResetEntity;
         }
+
+        private async Task<UserAuditEntity> CreateUserAuditAsync(long? userId, string description, string oldValue, string newValue, string userIpAddress, decimal? googleReCaptchaScore, DateTime utcNow, CancellationToken cancellationToken)
+        {
+            var userAuditEntity = new UserAuditEntity()
+            {
+                UserId = userId,
+                Activity = description,
+                OldValue = oldValue,
+                NewValue = newValue,
+                UserIpAddress = userIpAddress,
+                GoogleReCaptchaScore = googleReCaptchaScore,
+                CreatedDateTimeUtc = utcNow
+            };
+
+            await UserAuditsRepository.CreateAsync(userAuditEntity, cancellationToken);
+
+            return userAuditEntity;
+        }
+
     }
 }
