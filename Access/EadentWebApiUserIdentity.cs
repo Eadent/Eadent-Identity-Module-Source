@@ -7,6 +7,8 @@ using Eadent.Identity.Definitions;
 using Eadent.Identity.Helpers;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Eadent.Identity.Access
 {
@@ -25,11 +27,11 @@ namespace Eadent.Identity.Access
             UserSessionsRepository = userSessionsRepository;
         }
 
-        public UserSessionSignInResponseDto SignInUser(UserSessionSignInRequestDto requestDto, string userIpAddress)
+        public async Task<UserSessionSignInResponseDto> SignInUserAsync(UserSessionSignInRequestDto requestDto, string userIpAddress, CancellationToken cancellationToken)
         {
             var responseDto = new UserSessionSignInResponseDto();
 
-            (SignInStatus signInStatusId, UserSessionEntity userSessionEntity, DateTime? previousUserSignInDateTimeUtc) = EadentUserIdentity.SignInUser(SignInType.WebApi, requestDto.EMailAddress, requestDto.PlainTextPassword, userIpAddress, googleReCaptchaScore: null);
+            (SignInStatus signInStatusId, UserSessionEntity userSessionEntity, DateTime? previousUserSignInDateTimeUtc) = await EadentUserIdentity.SignInUserAsync(SignInType.WebApi, requestDto.EMailAddress, requestDto.PlainTextPassword, userIpAddress, googleReCaptchaScore: null, cancellationToken);
 
             switch (signInStatusId)
             {
@@ -70,7 +72,7 @@ namespace Eadent.Identity.Access
             return responseDto;
         }
 
-        public UserRegisterResponseDto RegisterUser(string userWebApiSessionToken, UserRegisterRequestDto requestDto, string userIpAddress)
+        public async Task<UserRegisterResponseDto> RegisterUserAsync(string userWebApiSessionToken, UserRegisterRequestDto requestDto, string userIpAddress, CancellationToken cancellationToken)
         {
             var responseDto = new UserRegisterResponseDto();
 
@@ -107,9 +109,9 @@ namespace Eadent.Identity.Access
                     }
                     else
                     {
-                        (RegisterUserStatus registerUserStatusId, UserEntity userEntity) = EadentUserIdentity.RegisterUser(requestDto.CreatedByApplicationId,
+                        (RegisterUserStatus registerUserStatusId, UserEntity userEntity) = await EadentUserIdentity.RegisterUserAsync(requestDto.CreatedByApplicationId,
                             requestDto.UserGuidString, (Role)requestDto.RoleId, requestDto.DisplayName, requestDto.EMailAddress, requestDto.MobilePhoneNumber,
-                            requestDto.PlainTextPassword, userIpAddress, null);
+                            requestDto.PlainTextPassword, userIpAddress, null, cancellationToken);
 
                         switch (registerUserStatusId)
                         {
@@ -224,7 +226,7 @@ namespace Eadent.Identity.Access
             return responseDto;
         }
 
-        public UserSessionSignOutResponseDto SignOutUser(string userWebApiSessionToken, string userIpAddress)
+        public async Task<UserSessionSignOutResponseDto> SignOutUserAsync(string userWebApiSessionToken, string userIpAddress, CancellationToken cancellationToken)
         {
             var responseDto = new UserSessionSignOutResponseDto();
 
@@ -245,7 +247,7 @@ namespace Eadent.Identity.Access
                 }
                 else
                 {
-                    var userSessionEntity = UserSessionsRepository.GetFirstOrDefault(entity => entity.UserSessionGuid == userSessionGuid);
+                    var userSessionEntity = await UserSessionsRepository.GetFirstOrDefaultAsync(entity => entity.UserSessionGuid == userSessionGuid, cancellationToken);
 
                     if (userSessionEntity == null)
                     {
@@ -255,7 +257,7 @@ namespace Eadent.Identity.Access
                     }
                     else
                     {
-                        SignOutStatus signOutStatusId = EadentUserIdentity.SignOutUser(userSessionEntity.UserSessionToken, userIpAddress);
+                        SignOutStatus signOutStatusId = await EadentUserIdentity.SignOutUserAsync(userSessionEntity.UserSessionToken, userIpAddress, cancellationToken);
 
                         switch (signOutStatusId)
                         {

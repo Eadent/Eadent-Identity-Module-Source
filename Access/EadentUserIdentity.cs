@@ -79,72 +79,6 @@ namespace Eadent.Identity.Access
             return hashedPassword;
         }
 
-        private UserEntity CreateUser(int createdByApplicationId, string userGuidString, string displayName, string eMailAddress, string mobilePhoneNumber, string plainTextPassword, DateTime utcNow)
-        {
-            Guid? userGuid = null;
-
-            if (!string.IsNullOrWhiteSpace(userGuidString))
-            {
-                if (Guid.TryParse(userGuidString, out var parsedUserGuid))
-                    userGuid = parsedUserGuid;
-            }
-
-            if (userGuid == null)
-                userGuid = Guid.NewGuid();
-
-            var passwordSaltGuid = Guid.NewGuid();
-
-            var passwordHashIterationCount = EadentIdentitySettings.Instance.UserIdentity.Security.Hasher.IterationCount;
-            var passwordHashNumDerivedKeyBytes = EadentIdentitySettings.Instance.UserIdentity.Security.Hasher.NumDerivedKeyBytes;
-
-            var userEntity = new UserEntity()
-            {
-                UserGuid = userGuid.GetValueOrDefault(),
-                UserStatusId = UserStatus.Enabled,
-                CreatedByApplicationId = createdByApplicationId,
-                SignInMultiFactorAuthenticationTypeId = SignInMultiFactorAuthenticationType.None,
-                DisplayName = displayName,
-                EMailAddress = eMailAddress,
-                EMailAddressConfirmationStatusId = ConfirmationStatus.NotConfirmed,
-                EMailAddressConfirmationCode = null,
-                MobilePhoneNumber = mobilePhoneNumber,
-                MobilePhoneNumberConfirmationStatusId = ConfirmationStatus.NotConfirmed,
-                MobilePhoneNumberConfirmationCode = null,
-                PasswordVersionId = PasswordVersion.HMACSHA512,
-                PasswordHashIterationCount = passwordHashIterationCount,
-                PasswordHashNumDerivedKeyBytes = passwordHashNumDerivedKeyBytes,
-                PasswordSaltGuid = passwordSaltGuid,
-                Password = HashUserPasswordHMACSHA512(plainTextPassword, passwordHashIterationCount, passwordHashNumDerivedKeyBytes, passwordSaltGuid),
-                PasswordLastUpdatedDateTimeUtc = utcNow,
-                ChangePasswordNextSignIn = false,
-                SignInErrorCount = 0,
-                SignInErrorLimit = EadentIdentitySettings.Instance.UserIdentity.Account.SignInErrorLimit,
-                SignInLockOutDurationInSeconds = EadentIdentitySettings.Instance.UserIdentity.Account.SignInLockOutDurationInSeconds,
-                SignInLockOutDateTimeUtc = null,
-                CreatedDateTimeUtc = utcNow,
-                LastUpdatedDateTimeUtc = null
-            };
-
-            UsersRepository.Create(userEntity);
-            UsersRepository.SaveChanges();
-
-            return userEntity;
-        }
-
-        private UserRoleEntity CreateUserRole(UserEntity userEntity, Role roleId, DateTime utcNow)
-        {
-            var userRoleEntity = new UserRoleEntity()
-            {
-                UserId = userEntity.UserId,
-                RoleId = roleId,
-                CreatedDateTimeUtc = utcNow
-            };
-
-            UserRolesRepository.Create(userRoleEntity);
-
-            return userRoleEntity;
-        }
-
         private UserAuditEntity CreateUserAudit(long? userId, string description, string oldValue, string newValue, string userIpAddress, decimal? googleReCaptchaScore, DateTime utcNow)
         {
             var userAuditEntity = new UserAuditEntity()
@@ -163,209 +97,8 @@ namespace Eadent.Identity.Access
             return userAuditEntity;
         }
 
-        private UserSessionEntity CreateUserSession(SignInType signInTypeId, UserEntity userEntity, string userSessionToken, UserSessionStatus userSessionStatusId, string eMailAddress, string userIpAddress, SignInStatus signInStatusId, DateTime utcNow)
-        {
-            var userSessionEntity = new UserSessionEntity()
-            {
-                UserSessionSignInTypeId = signInTypeId,
-                UserSessionToken = userSessionToken,
-                UserSessionGuid = Guid.NewGuid(),
-                UserSessionStatusId = userSessionStatusId,
-                UserSessionExpirationDurationInSeconds = EadentIdentitySettings.Instance.UserIdentity.Account.SessionExpirationDurationInSeconds,
-                EMailAddress = eMailAddress,
-                MobilePhoneNumber = userEntity?.MobilePhoneNumber,
-                UserIpAddress = userIpAddress,
-                SignInStatusId = signInStatusId,
-                UserId = userEntity.UserId,
-                CreatedDateTimeUtc = utcNow,
-                LastUpdatedDateTimeUtc = utcNow
-            };
-
-            UserSessionsRepository.Create(userSessionEntity);
-
-            return userSessionEntity;
-        }
-
-        private (UserSessionStatus userSessionStatusId, SignInStatus signInStatusId, DateTime? previousUserSignInDateTimeUtc) SignInEnabledUser(UserEntity userEntity, string hashedPassword, DateTime utcNow)
-        {
-            var userSessionStatusId = UserSessionStatus.Inactive;
-
-            var signInStatusId = SignInStatus.Error;
-
-            DateTime? previousUserSignInDateTimeUtc = null;
-
-            try
-            {
-                if (hashedPassword == userEntity.Password)
-                {
-                    if (userEntity.ChangePasswordNextSignIn)
-                    {
-                        signInStatusId = SignInStatus.SuccessUserMustChangePassword;
-                    }
-                    else
-                    {
-                        signInStatusId = SignInStatus.Success;
-                    }
-
-                    userEntity.SignInErrorCount = 0;
-
-                    userSessionStatusId = UserSessionStatus.SignedIn;
-
-                    previousUserSignInDateTimeUtc = UserSessionsRepository.GetLastOrDefault(userEntity.UserId)?.CreatedDateTimeUtc;
-                }
-                else
-                {
-                    ++userEntity.SignInErrorCount;
-
-                    if (userEntity.SignInErrorCount >= userEntity.SignInErrorLimit)
-                    {
-                        signInStatusId = SignInStatus.UserLockedOut;
-
-                        userEntity.SignInLockOutDateTimeUtc = utcNow;
-                        userEntity.UserStatusId = UserStatus.SignInLockedOut;
-                    }
-                    else
-                    {
-                        signInStatusId = SignInStatus.InvalidPassword;
-                    }
-                }
-
-                UsersRepository.Update(userEntity);
-            }
-            catch (Exception exception)
-            {
-                Logger.LogError(exception, "An Exception has occurred.");
-            }
-
-            return (userSessionStatusId, signInStatusId, previousUserSignInDateTimeUtc);
-        }
-
-        private (UserSessionStatus userSessionStatusId, SignInStatus signInStatusId, DateTime? previousUserSignInDateTimeUtc) SignInLockedOutUser(UserEntity userEntity, string hashedPassword, DateTime utcNow)
-        {
-            var userSessionStatusId = UserSessionStatus.Inactive;
-
-            var signInStatusId = SignInStatus.Error;
-
-            DateTime? previousUserSignInDateTimeUtc = null;
-
-            // Just In Case of a Software or Database Administration Error, treat a null SignInLockOutDateTimeUtc as Lock Out Expired.
-            if ((userEntity.SignInLockOutDateTimeUtc == null) ||
-                (userEntity.SignInLockOutDateTimeUtc.Value.AddSeconds(userEntity.SignInLockOutDurationInSeconds) <= utcNow))
-            {
-                userEntity.SignInErrorCount = 0;
-                userEntity.SignInLockOutDateTimeUtc = null;
-                userEntity.UserStatusId = UserStatus.Enabled;
-
-                (userSessionStatusId, signInStatusId, previousUserSignInDateTimeUtc) = SignInEnabledUser(userEntity, hashedPassword, utcNow);
-            }
-            else
-            {
-                signInStatusId = SignInStatus.UserLockedOut;
-            }
-
-            return (userSessionStatusId, signInStatusId, previousUserSignInDateTimeUtc);
-        }
-
-        private DeleteUserStatus PerformSoftDelete(UserEntity userEntity, bool selfSoftDelete, DateTime utcNow)
-        {
-            var deleteUserStatusId = DeleteUserStatus.Error;
-
-            if (userEntity.UserStatusId == UserStatus.SoftDeleted)
-            {
-                deleteUserStatusId = DeleteUserStatus.AlreadySoftDeleted;
-            }
-            else
-            {
-                // 0. Update User Entity.
-                userEntity.UserStatusId = UserStatus.SoftDeleted;
-                UsersRepository.Update(userEntity);
-
-                if (selfSoftDelete)
-                {
-                    // 1. Invalidate any User Sessions.
-                    var parameters = new List<object>();
-
-                    var userSessionStatusIdParameter = new SqlParameter("@UserSessionStatusId", SqlDbType.SmallInt) { Value = UserSessionStatus.SoftDeleted };
-                    parameters.Add(userSessionStatusIdParameter);
-                    var utcNowParameter = new SqlParameter("@UtcNow", SqlDbType.DateTime) { Value = utcNow };
-                    parameters.Add(utcNowParameter);
-                    var userIdParameter = new SqlParameter("@UserId", SqlDbType.BigInt) { Value = userEntity.UserId };
-                    parameters.Add(userIdParameter);
-
-                    var sql = $"UPDATE {EadentUserIdentityDatabase.DatabaseSchema}.UserSessions SET UserSessionStatusId = @UserSessionStatusId, LastAccessedDateTimeUtc = @UtcNow WHERE UserId = @UserId;";
-
-                    var rowCount = EadentUserIdentityDatabase.ExecuteSqlRaw(sql, parameters);
-                }
-
-                deleteUserStatusId = DeleteUserStatus.SoftDeleted;
-            }
-
-            return deleteUserStatusId;
-        }
-
-        private DeleteUserStatus PerformSoftUnDelete(UserEntity userEntity)
-        {
-            var deleteUserStatusId = DeleteUserStatus.Error;
-
-            if (userEntity.UserStatusId != UserStatus.SoftDeleted)
-            {
-                deleteUserStatusId = DeleteUserStatus.NotSoftDeleted;
-            }
-            else
-            {
-                userEntity.SignInErrorCount = 0;
-                userEntity.SignInLockOutDateTimeUtc = null;
-                userEntity.UserStatusId = UserStatus.Enabled;
-
-                UsersRepository.Update(userEntity);
-
-                deleteUserStatusId = DeleteUserStatus.SoftUnDeleted;
-            }
-
-            return deleteUserStatusId;
-        }
-
-        private DeleteUserStatus PerformHardDelete(UserEntity userEntity)
-        {
-            var deleteUserStatusId = DeleteUserStatus.Error;
-
-            try
-            {
-                int rowCount = 0;
-
-                var parameters = new List<object>();
-
-                var userIdParameter = new SqlParameter("@UserId", SqlDbType.BigInt) { Value = userEntity.UserId };
-                parameters.Add(userIdParameter);
-
-                var sql = $"DELETE FROM {EadentUserIdentityDatabase.DatabaseSchema}.UserAudits WHERE UserId = @UserId;";
-                rowCount = EadentUserIdentityDatabase.ExecuteSqlRaw(sql, parameters);
-
-                sql = $"DELETE FROM {EadentUserIdentityDatabase.DatabaseSchema}.UserPasswordResets WHERE UserId = @UserId;";
-                rowCount = EadentUserIdentityDatabase.ExecuteSqlRaw(sql, parameters);
-
-                sql = $"DELETE FROM {EadentUserIdentityDatabase.DatabaseSchema}.UserRoles WHERE UserId = @UserId;";
-                rowCount = EadentUserIdentityDatabase.ExecuteSqlRaw(sql, parameters);
-
-                sql = $"DELETE FROM {EadentUserIdentityDatabase.DatabaseSchema}.UserSessions WHERE UserId = @UserId;";
-                rowCount = EadentUserIdentityDatabase.ExecuteSqlRaw(sql, parameters);
-
-                sql = $"DELETE FROM {EadentUserIdentityDatabase.DatabaseSchema}.Users WHERE UserId = @UserId;";
-                rowCount = EadentUserIdentityDatabase.ExecuteSqlRaw(sql, parameters);
-
-                deleteUserStatusId = DeleteUserStatus.HardDeleted;
-            }
-            catch (Exception exception)
-            {
-                Logger.LogError(exception, "An Exception has occurred.");
-
-                deleteUserStatusId = DeleteUserStatus.Error;
-            }
-
-            return deleteUserStatusId;
-        }
-
-        public (RegisterUserStatus registerUserStatusId, UserEntity userEntity) RegisterUser(int createdByApplicationId, string userGuidString, Role roleId, string displayName, string eMailAddress, string mobilePhoneNumber, string plainTextPassword, string userIpAddress, decimal? googleReCaptchaScore)
+        public async Task<(RegisterUserStatus registerUserStatusId, UserEntity userEntity)>
+            RegisterUserAsync(int createdByApplicationId, string userGuidString, Role roleId, string displayName, string eMailAddress, string mobilePhoneNumber, string plainTextPassword, string userIpAddress, decimal? googleReCaptchaScore, CancellationToken cancellationToken)
         {
             // TODO: Validate E-Mail Address.
             // TODO: Validate Mobile Phone Number.
@@ -379,9 +112,9 @@ namespace Eadent.Identity.Access
             {
                 var utcNow = DateTime.UtcNow;
 
-                EadentUserIdentityDatabase.BeginTransaction();
+                await EadentUserIdentityDatabase.BeginTransactionAsync(cancellationToken);
 
-                userEntity = UsersRepository.GetFirstOrDefaultByEMailAddressIncludeRoles(eMailAddress);
+                userEntity = await UsersRepository.GetFirstOrDefaultByEMailAddressIncludeRolesAsync(eMailAddress, cancellationToken);
 
                 if (userEntity != null)
                 {
@@ -389,24 +122,24 @@ namespace Eadent.Identity.Access
                 }
                 else
                 {
-                    userEntity = CreateUser(createdByApplicationId, userGuidString, displayName, eMailAddress, mobilePhoneNumber, plainTextPassword, utcNow);
-                    CreateUserRole(userEntity, roleId, utcNow);
+                    userEntity = await CreateUserAsync(createdByApplicationId, userGuidString, displayName, eMailAddress, mobilePhoneNumber, plainTextPassword, utcNow, cancellationToken);
+                    await CreateUserRoleAsync(userEntity, roleId, utcNow, cancellationToken);
 
                     registerUserStatusId = RegisterUserStatus.Success;
                 }
 
                 Logger.LogInformation($"RegisterUserStatusId: {registerUserStatusId} : EMailAddress: {eMailAddress} : MobilePhoneNUmber: {mobilePhoneNumber} : UserIpAddress: {userIpAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
 
-                CreateUserAudit(userEntity.UserId, $"User Register. RegisterUserStatusId: {registerUserStatusId}", null, $"Created By Application Id: {createdByApplicationId} : E-Mail Address: {eMailAddress} : Mobile Phone Number: {mobilePhoneNumber}", userIpAddress, googleReCaptchaScore, utcNow);
+                await CreateUserAuditAsync(userEntity.UserId, $"User Register. RegisterUserStatusId: {registerUserStatusId}", null, $"Created By Application Id: {createdByApplicationId} : E-Mail Address: {eMailAddress} : Mobile Phone Number: {mobilePhoneNumber}", userIpAddress, googleReCaptchaScore, utcNow, cancellationToken);
 
-                EadentUserIdentityDatabase.SaveChanges();
-                EadentUserIdentityDatabase.CommitTransaction();
+                await EadentUserIdentityDatabase.SaveChangesAsync(cancellationToken);
+                await EadentUserIdentityDatabase.CommitTransactionAsync(cancellationToken);
             }
             catch (Exception exception)
             {
                 Logger.LogError(exception, "An Exception has occurred.");
 
-                EadentUserIdentityDatabase.RollbackTransaction();
+                await EadentUserIdentityDatabase.RollbackTransactionAsync(cancellationToken);
 
                 registerUserStatusId = RegisterUserStatus.Error;
             }
@@ -414,7 +147,8 @@ namespace Eadent.Identity.Access
             return (registerUserStatusId, userEntity);
         }
 
-        public (SignInStatus signInStatusId, UserSessionEntity userSessionEntity, DateTime? previousUserSignInDateTimeUtc) SignInUser(SignInType signInTypeId, string eMailAddress, string plainTextPassword, string userIpAddress, decimal? googleReCaptchaScore)
+        public async Task<(SignInStatus signInStatusId, UserSessionEntity userSessionEntity, DateTime? previousUserSignInDateTimeUtc)>
+            SignInUserAsync(SignInType signInTypeId, string eMailAddress, string plainTextPassword, string userIpAddress, decimal? googleReCaptchaScore, CancellationToken cancellationToken)
         {
             var signInStatusId = SignInStatus.Error;
 
@@ -435,9 +169,9 @@ namespace Eadent.Identity.Access
 
                 string userSessionToken = null;
 
-                EadentUserIdentityDatabase.BeginTransaction();
+                await EadentUserIdentityDatabase.BeginTransactionAsync(cancellationToken);
 
-                userEntity = UsersRepository.GetFirstOrDefaultByEMailAddressIncludeRoles(eMailAddress);
+                userEntity = await UsersRepository.GetFirstOrDefaultByEMailAddressIncludeRolesAsync(eMailAddress, cancellationToken);
 
                 string hashedPassword = null;
 
@@ -473,7 +207,7 @@ namespace Eadent.Identity.Access
                     {
                         case UserStatus.Enabled:
 
-                            (userSessionStatusId, signInStatusId, previousUserSignInDateTimeUtc) = SignInEnabledUser(userEntity, hashedPassword, utcNow);
+                            (userSessionStatusId, signInStatusId, previousUserSignInDateTimeUtc) = await SignInEnabledUserAsync(userEntity, hashedPassword, utcNow, cancellationToken);
                             break;
 
                         case UserStatus.Disabled:
@@ -483,7 +217,7 @@ namespace Eadent.Identity.Access
 
                         case UserStatus.SignInLockedOut:
 
-                            (userSessionStatusId, signInStatusId, previousUserSignInDateTimeUtc) = SignInLockedOutUser(userEntity, hashedPassword, utcNow);
+                            (userSessionStatusId, signInStatusId, previousUserSignInDateTimeUtc) = await SignInLockedOutUserAsync(userEntity, hashedPassword, utcNow, cancellationToken);
                             break;
 
                         case UserStatus.SoftDeleted:
@@ -492,15 +226,15 @@ namespace Eadent.Identity.Access
                             break;
                     }
 
-                    userSessionEntity = CreateUserSession(signInTypeId, userEntity, userSessionToken, userSessionStatusId, eMailAddress, userIpAddress, signInStatusId, utcNow);
+                    userSessionEntity = await CreateUserSessionAsync(signInTypeId, userEntity, userSessionToken, userSessionStatusId, eMailAddress, userIpAddress, signInStatusId, utcNow, cancellationToken);
                 }
 
                 Logger.LogInformation($"SignInTypeId: {signInTypeId} : SignInStatusId: {signInStatusId} : EMailAddress: {eMailAddress} : UserIpAddress: {userIpAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
 
-                CreateUserAudit(userEntity?.UserId, $"User Sign In. SignInTypeId: {signInTypeId} : SignInStatusId: {signInStatusId}", null, $"E-Mail Address: {eMailAddress}", userIpAddress, googleReCaptchaScore, utcNow);
+                await CreateUserAuditAsync(userEntity?.UserId, $"User Sign In. SignInTypeId: {signInTypeId} : SignInStatusId: {signInStatusId}", null, $"E-Mail Address: {eMailAddress}", userIpAddress, googleReCaptchaScore, utcNow, cancellationToken);
 
-                EadentUserIdentityDatabase.SaveChanges();
-                EadentUserIdentityDatabase.CommitTransaction();
+                await EadentUserIdentityDatabase.SaveChangesAsync(cancellationToken);
+                await EadentUserIdentityDatabase.CommitTransactionAsync(cancellationToken);
             }
             catch (Exception exception)
             {
@@ -589,7 +323,8 @@ namespace Eadent.Identity.Access
             return (sessionStatusId, userSessionEntity);
         }
 
-        public (ChangeUserEMailStatus changeUserEMailStatusId, UserSessionEntity userSessionEntity) ChangeUserEMailAddress(string userSessionToken, string plainTextPassword, string oldEMailAddress, string newEMailAddress, string userIpAddress, decimal googleReCaptchaScore)
+        public async Task<(ChangeUserEMailStatus changeUserEMailStatusId, UserSessionEntity userSessionEntity)>
+            ChangeUserEMailAddressAsync(string userSessionToken, string plainTextPassword, string oldEMailAddress, string newEMailAddress, string userIpAddress, decimal googleReCaptchaScore, CancellationToken cancellationToken)
         {
             // TODO: Validate New E-Mail Address.
 
@@ -606,7 +341,7 @@ namespace Eadent.Identity.Access
 
             try
             {
-                userSessionEntity = UserSessionsRepository.GetFirstOrDefaultIncludeUserAndRoles(userSessionToken);
+                userSessionEntity = await UserSessionsRepository.GetFirstOrDefaultIncludeUserAndRolesAsync(userSessionToken, cancellationToken);
 
                 if (userSessionEntity == null)
                 {
@@ -647,7 +382,7 @@ namespace Eadent.Identity.Access
                             }
                             else
                             {
-                                userEntity = UsersRepository.GetFirstOrDefaultByEMailAddressIncludeRoles(oldEMailAddress);
+                                userEntity = await UsersRepository.GetFirstOrDefaultByEMailAddressIncludeRolesAsync(oldEMailAddress, cancellationToken);
 
                                 if (userEntity == null)
                                 {
@@ -665,12 +400,12 @@ namespace Eadent.Identity.Access
                                         userEntity.EMailAddressConfirmationStatusId = ConfirmationStatus.NotConfirmed;
                                         userEntity.EMailAddressConfirmationCode = null;
 
-                                        UsersRepository.Update(userEntity);
+                                        await UsersRepository.UpdateAsync(userEntity, cancellationToken);
 
                                         userSessionEntity.UserSessionStatusId = UserSessionStatus.SignedOut;
                                         userSessionEntity.LastUpdatedDateTimeUtc = utcNow;
 
-                                        UserSessionsRepository.Update(userSessionEntity);
+                                        await UserSessionsRepository.UpdateAsync(userSessionEntity, cancellationToken);
 
                                         changeUserEMailStatusId = ChangeUserEMailStatus.SuccessSignedOut;
                                     }
@@ -702,9 +437,9 @@ namespace Eadent.Identity.Access
 
                 Logger.LogInformation($"ChangeUserEMailStatusId: {changeUserEMailStatusId} : OldEMailAddress: {oldEMailAddress} : NewEMailAddress: {newEMailAddress} : UserIpAddress: {userIpAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
 
-                CreateUserAudit(userEntity?.UserId, $"User Change E-Mail Address. ChangeUserEMailStatusId: {changeUserEMailStatusId}", $"Old E-Mail Address: {oldEMailAddress}", $"New E-Mail Address: {newEMailAddress}", userIpAddress, googleReCaptchaScore, utcNow);
+                await CreateUserAuditAsync(userEntity?.UserId, $"User Change E-Mail Address. ChangeUserEMailStatusId: {changeUserEMailStatusId}", $"Old E-Mail Address: {oldEMailAddress}", $"New E-Mail Address: {newEMailAddress}", userIpAddress, googleReCaptchaScore, utcNow, cancellationToken);
 
-                EadentUserIdentityDatabase.SaveChanges();
+                await EadentUserIdentityDatabase.SaveChangesAsync(cancellationToken);
             }
             catch (Exception exception)
             {
@@ -716,7 +451,8 @@ namespace Eadent.Identity.Access
             return (changeUserEMailStatusId, userSessionEntity);
         }
 
-        public (ChangeUserPasswordStatus changeUserPasswordStatusId, UserSessionEntity userSessionEntity) ChangeUserPassword(string userSessionToken, string oldPlainTextPassword, string newPlainTextPassword, string userIpAddress, decimal googleReCaptchaScore)
+        public async Task<(ChangeUserPasswordStatus changeUserPasswordStatusId, UserSessionEntity userSessionEntity)>
+            ChangeUserPasswordAsync(string userSessionToken, string oldPlainTextPassword, string newPlainTextPassword, string userIpAddress, decimal googleReCaptchaScore, CancellationToken cancellationToken)
         {
             // TODO: Validate New Plain Text Password.
 
@@ -733,7 +469,7 @@ namespace Eadent.Identity.Access
 
             try
             {
-                userSessionEntity = UserSessionsRepository.GetFirstOrDefaultIncludeUserAndRoles(userSessionToken);
+                userSessionEntity = await UserSessionsRepository.GetFirstOrDefaultIncludeUserAndRolesAsync(userSessionToken, cancellationToken);
 
                 if (userSessionEntity == null)
                 {
@@ -780,12 +516,12 @@ namespace Eadent.Identity.Access
                                 userEntity.Password = newHashedPassword;
                                 userEntity.PasswordLastUpdatedDateTimeUtc = utcNow;
 
-                                UsersRepository.Update(userEntity);
+                                await UsersRepository.UpdateAsync(userEntity, cancellationToken);
 
                                 userSessionEntity.UserSessionStatusId = UserSessionStatus.SignedOut;
                                 userSessionEntity.LastUpdatedDateTimeUtc = utcNow;
 
-                                UserSessionsRepository.Update(userSessionEntity);
+                                await UserSessionsRepository.UpdateAsync(userSessionEntity, cancellationToken);
 
                                 changeUserPasswordStatusId = ChangeUserPasswordStatus.SuccessSignedOut;
                             }
@@ -815,9 +551,9 @@ namespace Eadent.Identity.Access
 
                 Logger.LogInformation($"ChangeUserPasswordStatusId: {changeUserPasswordStatusId} : UserIpAddress: {userIpAddress} : GoogleReCaptchaScore: {googleReCaptchaScore}");
 
-                CreateUserAudit(userEntity?.UserId, $"User Change Password. ChangeUserPasswordStatusId: {changeUserPasswordStatusId}", null, null, userIpAddress, googleReCaptchaScore, utcNow);
+                await CreateUserAuditAsync(userEntity?.UserId, $"User Change Password. ChangeUserPasswordStatusId: {changeUserPasswordStatusId}", null, null, userIpAddress, googleReCaptchaScore, utcNow, cancellationToken);
 
-                EadentUserIdentityDatabase.SaveChanges();
+                await EadentUserIdentityDatabase.SaveChangesAsync(cancellationToken);
             }
             catch (Exception exception)
             {
@@ -829,7 +565,8 @@ namespace Eadent.Identity.Access
             return (changeUserPasswordStatusId, userSessionEntity);
         }
 
-        public SignOutStatus SignOutUser(string userSessionToken, string userIpAddress)
+        public async Task<SignOutStatus>
+            SignOutUserAsync(string userSessionToken, string userIpAddress, CancellationToken cancellationToken)
         {
             var signOutStatusId = SignOutStatus.Error;
 
@@ -837,7 +574,7 @@ namespace Eadent.Identity.Access
 
             try
             {
-                var userSessionEntity = UserSessionsRepository.GetFirstOrDefault(entity => entity.UserSessionToken == userSessionToken);
+                var userSessionEntity = await UserSessionsRepository.GetFirstOrDefaultAsync(entity => entity.UserSessionToken == userSessionToken, cancellationToken);
 
                 if (userSessionEntity == null)
                 {
@@ -858,7 +595,7 @@ namespace Eadent.Identity.Access
                             userSessionEntity.UserSessionStatusId = UserSessionStatus.SignedOut;
                             userSessionEntity.LastUpdatedDateTimeUtc = utcNow;
 
-                            UserSessionsRepository.Update(userSessionEntity);
+                            await UserSessionsRepository.UpdateAsync(userSessionEntity, cancellationToken);
 
                             signOutStatusId = SignOutStatus.Success;
                             break;
@@ -882,9 +619,9 @@ namespace Eadent.Identity.Access
 
                 Logger.LogInformation($"SignOutStatusId: {signOutStatusId} : UserIpAddress: {userIpAddress}");
 
-                CreateUserAudit(userSessionEntity?.UserId, $"User Sign Out. SignOutStatusId: {signOutStatusId}", null, null, userIpAddress, null, utcNow);
+                await CreateUserAuditAsync(userSessionEntity?.UserId, $"User Sign Out. SignOutStatusId: {signOutStatusId}", null, null, userIpAddress, null, utcNow, cancellationToken);
 
-                EadentUserIdentityDatabase.SaveChanges();
+                await EadentUserIdentityDatabase.SaveChangesAsync(cancellationToken);
             }
             catch (Exception exception)
             {
@@ -896,7 +633,8 @@ namespace Eadent.Identity.Access
             return signOutStatusId;
         }
 
-        public DeleteUserStatus SoftDeleteUser(string userSessionToken, Guid userGuid, string userIpAddress)
+        public async Task<DeleteUserStatus>
+            SoftDeleteUserAsync(string userSessionToken, Guid userGuid, string userIpAddress, CancellationToken cancellationToken)
         {
             var deleteUserStatusId = DeleteUserStatus.Error;
 
@@ -904,12 +642,12 @@ namespace Eadent.Identity.Access
 
             try
             {
-                EadentUserIdentityDatabase.BeginTransaction();
+                await EadentUserIdentityDatabase.BeginTransactionAsync(cancellationToken);
 
                 long? initiatingUserId = null;
                 long? targetUserId = null;
 
-                UserSessionEntity userSessionEntity = UserSessionsRepository.GetFirstOrDefaultIncludeUserAndRoles(userSessionToken);
+                UserSessionEntity userSessionEntity = await UserSessionsRepository.GetFirstOrDefaultIncludeUserAndRolesAsync(userSessionToken, cancellationToken);
 
                 if (userSessionEntity == null)
                 {
@@ -953,7 +691,7 @@ namespace Eadent.Identity.Access
                     {
                         // We are Attempting to Soft Delete ourselves.
                         targetUserId = userSessionEntity.UserId;
-                        deleteUserStatusId = PerformSoftDelete(userSessionEntity.User, true, utcNow);
+                        deleteUserStatusId = await PerformSoftDeleteAsync(userSessionEntity.User, true, utcNow, cancellationToken);
                     }
                     else
                     {
@@ -964,7 +702,7 @@ namespace Eadent.Identity.Access
                         else
                         {
                             // We are Attempting to Soft Delete another User.
-                            var targetUserEntity = UsersRepository.GetFirstOrDefault(entity => entity.UserGuid == userGuid);
+                            var targetUserEntity = await UsersRepository.GetFirstOrDefaultAsync(entity => entity.UserGuid == userGuid, cancellationToken);
 
                             if (targetUserEntity == null)
                             {
@@ -973,7 +711,7 @@ namespace Eadent.Identity.Access
                             else
                             {
                                 targetUserId = targetUserEntity.UserId;
-                                deleteUserStatusId = PerformSoftDelete(targetUserEntity, false, utcNow);
+                                deleteUserStatusId = await PerformSoftDeleteAsync(targetUserEntity, false, utcNow, cancellationToken);
                             }
                         }
                     }
@@ -981,16 +719,16 @@ namespace Eadent.Identity.Access
 
                 Logger.LogInformation($"DeleteUserStatusId: {deleteUserStatusId} : InitiatingUserId: {initiatingUserId} - TargetUserId: {targetUserId} : UserIpAddress: {userIpAddress}");
 
-                CreateUserAudit(initiatingUserId, $"User Soft Delete. DeleteUserStatusId: {deleteUserStatusId}", null, $"Initiating User Id: {initiatingUserId} - Target User Id: {targetUserId}", userIpAddress, null, utcNow);
+                await CreateUserAuditAsync(initiatingUserId, $"User Soft Delete. DeleteUserStatusId: {deleteUserStatusId}", null, $"Initiating User Id: {initiatingUserId} - Target User Id: {targetUserId}", userIpAddress, null, utcNow, cancellationToken);
 
-                EadentUserIdentityDatabase.SaveChanges();
-                EadentUserIdentityDatabase.CommitTransaction();
+                await EadentUserIdentityDatabase.SaveChangesAsync(cancellationToken);
+                await EadentUserIdentityDatabase.CommitTransactionAsync(cancellationToken);
             }
             catch (Exception exception)
             {
                 Logger.LogError(exception, "An Exception has occurred.");
 
-                EadentUserIdentityDatabase.RollbackTransaction();
+                await EadentUserIdentityDatabase.RollbackTransactionAsync(cancellationToken);
 
                 deleteUserStatusId = DeleteUserStatus.Error;
             }
@@ -998,7 +736,8 @@ namespace Eadent.Identity.Access
             return deleteUserStatusId;
         }
 
-        public DeleteUserStatus SoftUnDeleteUser(string userSessionToken, Guid userGuid, string userIpAddress)
+        public async Task<DeleteUserStatus>
+            SoftUnDeleteUserAsync(string userSessionToken, Guid userGuid, string userIpAddress, CancellationToken cancellationToken)
         {
             var deleteUserStatusId = DeleteUserStatus.Error;
 
@@ -1006,12 +745,12 @@ namespace Eadent.Identity.Access
 
             try
             {
-                EadentUserIdentityDatabase.BeginTransaction();
+                await EadentUserIdentityDatabase.BeginTransactionAsync(cancellationToken);
 
                 long? initiatingUserId = null;
                 long? targetUserId = null;
 
-                UserSessionEntity userSessionEntity = UserSessionsRepository.GetFirstOrDefaultIncludeUserAndRoles(userSessionToken);
+                UserSessionEntity userSessionEntity = await UserSessionsRepository.GetFirstOrDefaultIncludeUserAndRolesAsync(userSessionToken, cancellationToken);
 
                 if (userSessionEntity == null)
                 {
@@ -1064,7 +803,7 @@ namespace Eadent.Identity.Access
                     else
                     {
                         // We are Attempting to Soft Un-Delete another User.
-                        var targetUserEntity = UsersRepository.GetFirstOrDefault(entity => entity.UserGuid == userGuid);
+                        var targetUserEntity = await UsersRepository.GetFirstOrDefaultAsync(entity => entity.UserGuid == userGuid, cancellationToken);
 
                         if (targetUserEntity == null)
                         {
@@ -1073,23 +812,23 @@ namespace Eadent.Identity.Access
                         else
                         {
                             targetUserId = targetUserEntity.UserId;
-                            deleteUserStatusId = PerformSoftUnDelete(targetUserEntity);
+                            deleteUserStatusId = await PerformSoftUnDeleteAsync(targetUserEntity, cancellationToken);
                         }
                     }
                 }
 
                 Logger.LogInformation($"DeleteUserStatusId: {deleteUserStatusId} : InitiatingUserId: {initiatingUserId} - TargetUserId: {targetUserId} : UserIpAddress: {userIpAddress}");
 
-                CreateUserAudit(initiatingUserId, $"User Soft Un-Delete. DeleteUserStatusId: {deleteUserStatusId}", null, $"Initiating User Id: {initiatingUserId} - Target User Id: {targetUserId}", userIpAddress, null, utcNow);
+                await CreateUserAuditAsync(initiatingUserId, $"User Soft Un-Delete. DeleteUserStatusId: {deleteUserStatusId}", null, $"Initiating User Id: {initiatingUserId} - Target User Id: {targetUserId}", userIpAddress, null, utcNow, cancellationToken);
 
-                EadentUserIdentityDatabase.SaveChanges();
-                EadentUserIdentityDatabase.CommitTransaction();
+                await EadentUserIdentityDatabase.SaveChangesAsync(cancellationToken);
+                await EadentUserIdentityDatabase.CommitTransactionAsync(cancellationToken);
             }
             catch (Exception exception)
             {
                 Logger.LogError(exception, "An Exception occurred.");
 
-                EadentUserIdentityDatabase.RollbackTransaction();
+                await EadentUserIdentityDatabase.RollbackTransactionAsync(cancellationToken);
 
                 deleteUserStatusId = DeleteUserStatus.Error;
             }
@@ -1097,7 +836,8 @@ namespace Eadent.Identity.Access
             return deleteUserStatusId;
         }
 
-        public DeleteUserStatus HardDeleteUser(string userSessionToken, Guid userGuid, string userIpAddress)
+        public async Task<DeleteUserStatus>
+            HardDeleteUserAsync(string userSessionToken, Guid userGuid, string userIpAddress, CancellationToken cancellationToken)
         {
             var deleteUserStatusId = DeleteUserStatus.Error;
 
@@ -1105,12 +845,12 @@ namespace Eadent.Identity.Access
 
             try
             {
-                EadentUserIdentityDatabase.BeginTransaction();
+                await EadentUserIdentityDatabase.BeginTransactionAsync(cancellationToken);
 
                 long? initiatingUserId = null;
                 long? targetUserId = null;
 
-                UserSessionEntity userSessionEntity = UserSessionsRepository.GetFirstOrDefaultIncludeUserAndRoles(userSessionToken);
+                UserSessionEntity userSessionEntity = await UserSessionsRepository.GetFirstOrDefaultIncludeUserAndRolesAsync(userSessionToken, cancellationToken);
 
                 if (userSessionEntity == null)
                 {
@@ -1163,7 +903,7 @@ namespace Eadent.Identity.Access
                     else
                     {
                         // We are Attempting to Hard Delete another User.
-                        var targetUserEntity = UsersRepository.GetFirstOrDefault(entity => entity.UserGuid == userGuid);
+                        var targetUserEntity = await UsersRepository.GetFirstOrDefaultAsync(entity => entity.UserGuid == userGuid, cancellationToken);
 
                         if (targetUserEntity == null)
                         {
@@ -1172,23 +912,23 @@ namespace Eadent.Identity.Access
                         else
                         {
                             targetUserId = targetUserEntity.UserId;
-                            deleteUserStatusId = PerformHardDelete(targetUserEntity);
+                            deleteUserStatusId = await PerformHardDeleteAsync(targetUserEntity, cancellationToken);
                         }
                     }
                 }
 
                 Logger.LogInformation($"DeleteUserStatusId: {deleteUserStatusId} : InitiatingUserId: {initiatingUserId} - TargetUserId: {targetUserId} : UserIpAddress: {userIpAddress}");
 
-                CreateUserAudit(initiatingUserId, $"User Hard Delete. DeleteUserStatusId: {deleteUserStatusId}", null, $"Initiating User Id: {initiatingUserId} - Target User Id: {targetUserId}", userIpAddress, null, utcNow);
+                await CreateUserAuditAsync(initiatingUserId, $"User Hard Delete. DeleteUserStatusId: {deleteUserStatusId}", null, $"Initiating User Id: {initiatingUserId} - Target User Id: {targetUserId}", userIpAddress, null, utcNow, cancellationToken);
 
-                EadentUserIdentityDatabase.SaveChanges();
-                EadentUserIdentityDatabase.CommitTransaction();
+                await EadentUserIdentityDatabase.SaveChangesAsync(cancellationToken);
+                await EadentUserIdentityDatabase.CommitTransactionAsync(cancellationToken);
             }
             catch (Exception exception)
             {
                 Logger.LogError(exception, "An Exception has occurred.");
 
-                EadentUserIdentityDatabase.RollbackTransaction();
+                await EadentUserIdentityDatabase.RollbackTransactionAsync(cancellationToken);
 
                 deleteUserStatusId = DeleteUserStatus.Error;
             }
@@ -1738,6 +1478,72 @@ namespace Eadent.Identity.Access
             return randomNumber.ToString("D6");
         }
 
+        private async Task<UserEntity> CreateUserAsync(int createdByApplicationId, string userGuidString, string displayName, string eMailAddress, string mobilePhoneNumber, string plainTextPassword, DateTime utcNow, CancellationToken cancellationToken)
+        {
+            Guid? userGuid = null;
+
+            if (!string.IsNullOrWhiteSpace(userGuidString))
+            {
+                if (Guid.TryParse(userGuidString, out var parsedUserGuid))
+                    userGuid = parsedUserGuid;
+            }
+
+            if (userGuid == null)
+                userGuid = Guid.NewGuid();
+
+            var passwordSaltGuid = Guid.NewGuid();
+
+            var passwordHashIterationCount = EadentIdentitySettings.Instance.UserIdentity.Security.Hasher.IterationCount;
+            var passwordHashNumDerivedKeyBytes = EadentIdentitySettings.Instance.UserIdentity.Security.Hasher.NumDerivedKeyBytes;
+
+            var userEntity = new UserEntity()
+            {
+                UserGuid = userGuid.GetValueOrDefault(),
+                UserStatusId = UserStatus.Enabled,
+                CreatedByApplicationId = createdByApplicationId,
+                SignInMultiFactorAuthenticationTypeId = SignInMultiFactorAuthenticationType.None,
+                DisplayName = displayName,
+                EMailAddress = eMailAddress,
+                EMailAddressConfirmationStatusId = ConfirmationStatus.NotConfirmed,
+                EMailAddressConfirmationCode = null,
+                MobilePhoneNumber = mobilePhoneNumber,
+                MobilePhoneNumberConfirmationStatusId = ConfirmationStatus.NotConfirmed,
+                MobilePhoneNumberConfirmationCode = null,
+                PasswordVersionId = PasswordVersion.HMACSHA512,
+                PasswordHashIterationCount = passwordHashIterationCount,
+                PasswordHashNumDerivedKeyBytes = passwordHashNumDerivedKeyBytes,
+                PasswordSaltGuid = passwordSaltGuid,
+                Password = HashUserPasswordHMACSHA512(plainTextPassword, passwordHashIterationCount, passwordHashNumDerivedKeyBytes, passwordSaltGuid),
+                PasswordLastUpdatedDateTimeUtc = utcNow,
+                ChangePasswordNextSignIn = false,
+                SignInErrorCount = 0,
+                SignInErrorLimit = EadentIdentitySettings.Instance.UserIdentity.Account.SignInErrorLimit,
+                SignInLockOutDurationInSeconds = EadentIdentitySettings.Instance.UserIdentity.Account.SignInLockOutDurationInSeconds,
+                SignInLockOutDateTimeUtc = null,
+                CreatedDateTimeUtc = utcNow,
+                LastUpdatedDateTimeUtc = null
+            };
+
+            await UsersRepository.CreateAsync(userEntity, cancellationToken);
+            await UsersRepository.SaveChangesAsync(cancellationToken);
+
+            return userEntity;
+        }
+
+        private async Task<UserRoleEntity> CreateUserRoleAsync(UserEntity userEntity, Role roleId, DateTime utcNow, CancellationToken cancellationToken)
+        {
+            var userRoleEntity = new UserRoleEntity()
+            {
+                UserId = userEntity.UserId,
+                RoleId = roleId,
+                CreatedDateTimeUtc = utcNow
+            };
+
+            await UserRolesRepository.CreateAsync(userRoleEntity, cancellationToken);
+
+            return userRoleEntity;
+        }
+
         private async Task<UserPasswordResetEntity> CreatePasswordResetAsync(string userPasswordResetCode, string eMailAddress, string userIpAddress, UserEntity userEntity, DateTime utcNow, CancellationToken cancellationToken)
         {
             var passwordResetSettings = EadentIdentitySettings.Instance.UserIdentity.Account.PasswordReset;
@@ -1781,5 +1587,210 @@ namespace Eadent.Identity.Access
             return userAuditEntity;
         }
 
+        private async Task<UserSessionEntity> CreateUserSessionAsync(SignInType signInTypeId, UserEntity userEntity, string userSessionToken, UserSessionStatus userSessionStatusId, string eMailAddress, string userIpAddress, SignInStatus signInStatusId, DateTime utcNow, CancellationToken cancellationToken)
+        {
+            var userSessionEntity = new UserSessionEntity()
+            {
+                UserSessionSignInTypeId = signInTypeId,
+                UserSessionToken = userSessionToken,
+                UserSessionGuid = Guid.NewGuid(),
+                UserSessionStatusId = userSessionStatusId,
+                UserSessionExpirationDurationInSeconds = EadentIdentitySettings.Instance.UserIdentity.Account.SessionExpirationDurationInSeconds,
+                EMailAddress = eMailAddress,
+                MobilePhoneNumber = userEntity?.MobilePhoneNumber,
+                UserIpAddress = userIpAddress,
+                SignInStatusId = signInStatusId,
+                UserId = userEntity.UserId,
+                CreatedDateTimeUtc = utcNow,
+                LastUpdatedDateTimeUtc = utcNow
+            };
+
+            await UserSessionsRepository.CreateAsync(userSessionEntity, cancellationToken);
+
+            return userSessionEntity;
+        }
+
+        private async Task<(UserSessionStatus userSessionStatusId, SignInStatus signInStatusId, DateTime? previousUserSignInDateTimeUtc)>
+            SignInEnabledUserAsync(UserEntity userEntity, string hashedPassword, DateTime utcNow, CancellationToken cancellationToken)
+        {
+            var userSessionStatusId = UserSessionStatus.Inactive;
+
+            var signInStatusId = SignInStatus.Error;
+
+            DateTime? previousUserSignInDateTimeUtc = null;
+
+            try
+            {
+                if (hashedPassword == userEntity.Password)
+                {
+                    if (userEntity.ChangePasswordNextSignIn)
+                    {
+                        signInStatusId = SignInStatus.SuccessUserMustChangePassword;
+                    }
+                    else
+                    {
+                        signInStatusId = SignInStatus.Success;
+                    }
+
+                    userEntity.SignInErrorCount = 0;
+
+                    userSessionStatusId = UserSessionStatus.SignedIn;
+
+                    previousUserSignInDateTimeUtc = (await UserSessionsRepository.GetLastOrDefaultAsync(userEntity.UserId, cancellationToken))?.CreatedDateTimeUtc;
+                }
+                else
+                {
+                    ++userEntity.SignInErrorCount;
+
+                    if (userEntity.SignInErrorCount >= userEntity.SignInErrorLimit)
+                    {
+                        signInStatusId = SignInStatus.UserLockedOut;
+
+                        userEntity.SignInLockOutDateTimeUtc = utcNow;
+                        userEntity.UserStatusId = UserStatus.SignInLockedOut;
+                    }
+                    else
+                    {
+                        signInStatusId = SignInStatus.InvalidPassword;
+                    }
+                }
+
+                UsersRepository.Update(userEntity);
+            }
+            catch (Exception exception)
+            {
+                Logger.LogError(exception, "An Exception has occurred.");
+            }
+
+            return (userSessionStatusId, signInStatusId, previousUserSignInDateTimeUtc);
+        }
+
+        private async Task<(UserSessionStatus userSessionStatusId, SignInStatus signInStatusId, DateTime? previousUserSignInDateTimeUtc)>
+            SignInLockedOutUserAsync(UserEntity userEntity, string hashedPassword, DateTime utcNow, CancellationToken cancellationToken)
+        {
+            var userSessionStatusId = UserSessionStatus.Inactive;
+
+            var signInStatusId = SignInStatus.Error;
+
+            DateTime? previousUserSignInDateTimeUtc = null;
+
+            // Just In Case of a Software or Database Administration Error, treat a null SignInLockOutDateTimeUtc as Lock Out Expired.
+            if ((userEntity.SignInLockOutDateTimeUtc == null) ||
+                (userEntity.SignInLockOutDateTimeUtc.Value.AddSeconds(userEntity.SignInLockOutDurationInSeconds) <= utcNow))
+            {
+                userEntity.SignInErrorCount = 0;
+                userEntity.SignInLockOutDateTimeUtc = null;
+                userEntity.UserStatusId = UserStatus.Enabled;
+
+                (userSessionStatusId, signInStatusId, previousUserSignInDateTimeUtc) = await SignInEnabledUserAsync(userEntity, hashedPassword, utcNow, cancellationToken);
+            }
+            else
+            {
+                signInStatusId = SignInStatus.UserLockedOut;
+            }
+
+            return (userSessionStatusId, signInStatusId, previousUserSignInDateTimeUtc);
+        }
+
+        private async Task<DeleteUserStatus>
+            PerformSoftDeleteAsync(UserEntity userEntity, bool selfSoftDelete, DateTime utcNow, CancellationToken cancellationToken)
+        {
+            var deleteUserStatusId = DeleteUserStatus.Error;
+
+            if (userEntity.UserStatusId == UserStatus.SoftDeleted)
+            {
+                deleteUserStatusId = DeleteUserStatus.AlreadySoftDeleted;
+            }
+            else
+            {
+                // 0. Update User Entity.
+                userEntity.UserStatusId = UserStatus.SoftDeleted;
+                await UsersRepository.UpdateAsync(userEntity, cancellationToken);
+
+                if (selfSoftDelete)
+                {
+                    // 1. Invalidate any User Sessions.
+                    var parameters = new List<object>();
+
+                    var userSessionStatusIdParameter = new SqlParameter("@UserSessionStatusId", SqlDbType.SmallInt) { Value = UserSessionStatus.SoftDeleted };
+                    parameters.Add(userSessionStatusIdParameter);
+                    var utcNowParameter = new SqlParameter("@UtcNow", SqlDbType.DateTime) { Value = utcNow };
+                    parameters.Add(utcNowParameter);
+                    var userIdParameter = new SqlParameter("@UserId", SqlDbType.BigInt) { Value = userEntity.UserId };
+                    parameters.Add(userIdParameter);
+
+                    var sql = $"UPDATE {EadentUserIdentityDatabase.DatabaseSchema}.UserSessions SET UserSessionStatusId = @UserSessionStatusId, LastAccessedDateTimeUtc = @UtcNow WHERE UserId = @UserId;";
+
+                    var rowCount = await EadentUserIdentityDatabase.ExecuteSqlRawAsync(sql, parameters, cancellationToken);
+                }
+
+                deleteUserStatusId = DeleteUserStatus.SoftDeleted;
+            }
+
+            return deleteUserStatusId;
+        }
+
+        private async Task<DeleteUserStatus>
+            PerformSoftUnDeleteAsync(UserEntity userEntity, CancellationToken cancellationToken)
+        {
+            var deleteUserStatusId = DeleteUserStatus.Error;
+
+            if (userEntity.UserStatusId != UserStatus.SoftDeleted)
+            {
+                deleteUserStatusId = DeleteUserStatus.NotSoftDeleted;
+            }
+            else
+            {
+                userEntity.SignInErrorCount = 0;
+                userEntity.SignInLockOutDateTimeUtc = null;
+                userEntity.UserStatusId = UserStatus.Enabled;
+
+                await UsersRepository.UpdateAsync(userEntity, cancellationToken);
+
+                deleteUserStatusId = DeleteUserStatus.SoftUnDeleted;
+            }
+
+            return deleteUserStatusId;
+        }
+
+        private async Task<DeleteUserStatus> PerformHardDeleteAsync(UserEntity userEntity, CancellationToken cancellationToken)
+        {
+            var deleteUserStatusId = DeleteUserStatus.Error;
+
+            try
+            {
+                int rowCount = 0;
+
+                var parameters = new List<object>();
+
+                var userIdParameter = new SqlParameter("@UserId", SqlDbType.BigInt) { Value = userEntity.UserId };
+                parameters.Add(userIdParameter);
+
+                var sql = $"DELETE FROM {EadentUserIdentityDatabase.DatabaseSchema}.UserAudits WHERE UserId = @UserId;";
+                rowCount = await EadentUserIdentityDatabase.ExecuteSqlRawAsync(sql, parameters, cancellationToken);
+
+                sql = $"DELETE FROM {EadentUserIdentityDatabase.DatabaseSchema}.UserPasswordResets WHERE UserId = @UserId;";
+                rowCount = await EadentUserIdentityDatabase.ExecuteSqlRawAsync(sql, parameters, cancellationToken);
+
+                sql = $"DELETE FROM {EadentUserIdentityDatabase.DatabaseSchema}.UserRoles WHERE UserId = @UserId;";
+                rowCount = await EadentUserIdentityDatabase.ExecuteSqlRawAsync(sql, parameters, cancellationToken);
+
+                sql = $"DELETE FROM {EadentUserIdentityDatabase.DatabaseSchema}.UserSessions WHERE UserId = @UserId;";
+                rowCount = await EadentUserIdentityDatabase.ExecuteSqlRawAsync(sql, parameters, cancellationToken);
+
+                sql = $"DELETE FROM {EadentUserIdentityDatabase.DatabaseSchema}.Users WHERE UserId = @UserId;";
+                rowCount = await EadentUserIdentityDatabase.ExecuteSqlRawAsync(sql, parameters, cancellationToken);
+
+                deleteUserStatusId = DeleteUserStatus.HardDeleted;
+            }
+            catch (Exception exception)
+            {
+                Logger.LogError(exception, "An Exception has occurred.");
+
+                deleteUserStatusId = DeleteUserStatus.Error;
+            }
+
+            return deleteUserStatusId;
+        }
     }
 }

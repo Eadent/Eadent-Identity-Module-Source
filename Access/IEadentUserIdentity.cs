@@ -8,24 +8,33 @@ namespace Eadent.Identity.Access
 {
     public interface IEadentUserIdentity
     {
-        (RegisterUserStatus registerUserStatusId, UserEntity userEntity) RegisterUser(int createdByApplicationId, string userGuidString, Role roleId, string displayName, string eMailAddress, string mobilePhoneNumber, string plainTextPassword, string userIpAddress, decimal? googleReCaptchaScore);
+        Task<(RegisterUserStatus registerUserStatusId, UserEntity userEntity)>
+            RegisterUserAsync(int createdByApplicationId, string userGuidString, Role roleId, string displayName, string eMailAddress, string mobilePhoneNumber, string plainTextPassword, string userIpAddress, decimal? googleReCaptchaScore, CancellationToken cancellationToken = default);
 
-        (SignInStatus signInStatusId, UserSessionEntity userSessionEntity, DateTime? previousUserSignInDateTimeUtc) SignInUser(SignInType signInTypeId, string eMailAddress, string plainTextPassword, string userIpAddress, decimal? googleReCaptchaScore);
+        Task<(SignInStatus signInStatusId, UserSessionEntity userSessionEntity, DateTime? previousUserSignInDateTimeUtc)>
+            SignInUserAsync(SignInType signInTypeId, string eMailAddress, string plainTextPassword, string userIpAddress, decimal? googleReCaptchaScore, CancellationToken cancellationToken = default);
 
-        // NOTE: As of 29-June-2025, this method cannot be an asynchronous method because it is used in the constructor of the UserSession class.
-        (SessionStatus sessionStatusId, UserSessionEntity userSessionEntity) CheckAndUpdateUserSession(string userSessionToken, string userIpAddress);
+        // NOTE: As of 29-June-2025, this cannot be an asynchronous method because it is used in the constructor of the UserSession class.
+        (SessionStatus sessionStatusId, UserSessionEntity userSessionEntity)
+            CheckAndUpdateUserSession(string userSessionToken, string userIpAddress);
 
-        (ChangeUserEMailStatus changeUserEMailStatusId, UserSessionEntity userSessionEntity) ChangeUserEMailAddress(string userSessionToken, string plainTextPassword, string oldEMailAddress, string newEMailAddress, string userIpAddress, decimal googleReCaptchaScore);
+        Task<(ChangeUserEMailStatus changeUserEMailStatusId, UserSessionEntity userSessionEntity)>
+            ChangeUserEMailAddressAsync(string userSessionToken, string plainTextPassword, string oldEMailAddress, string newEMailAddress, string userIpAddress, decimal googleReCaptchaScore, CancellationToken cancellationToken = default);
 
-        (ChangeUserPasswordStatus changeUserPasswordStatusId, UserSessionEntity userSessionEntity) ChangeUserPassword(string userSessionToken, string oldPlainTextPassword, string newPlainTextPassword, string userIpAddress, decimal googleReCaptchaScore);
+        Task<(ChangeUserPasswordStatus changeUserPasswordStatusId, UserSessionEntity userSessionEntity)>
+            ChangeUserPasswordAsync(string userSessionToken, string oldPlainTextPassword, string newPlainTextPassword, string userIpAddress, decimal googleReCaptchaScore, CancellationToken cancellationToken = default);
 
-        SignOutStatus SignOutUser(string userSessionToken, string userIpAddress);
+        Task<SignOutStatus>
+            SignOutUserAsync(string userSessionToken, string userIpAddress, CancellationToken cancellationToken = default);
 
-        DeleteUserStatus SoftDeleteUser(string userSessionToken, Guid userGuid, string userIpAddress);
+        Task<DeleteUserStatus>
+            SoftDeleteUserAsync(string userSessionToken, Guid userGuid, string userIpAddress, CancellationToken cancellationToken = default);
 
-        DeleteUserStatus SoftUnDeleteUser(string userSessionToken, Guid userGuid, string userIpAddress);
+        Task<DeleteUserStatus>
+            SoftUnDeleteUserAsync(string userSessionToken, Guid userGuid, string userIpAddress, CancellationToken cancellationToken = default);
 
-        DeleteUserStatus HardDeleteUser(string userSessionToken, Guid userGuid, string userIpAddress);
+        Task<DeleteUserStatus>
+            HardDeleteUserAsync(string userSessionToken, Guid userGuid, string userIpAddress, CancellationToken cancellationToken = default);
 
         Task<(UserPasswordResetStatus userPasswordResetStatusId, string displayName, string userPasswordResetCode)>
             BeginUserPasswordResetAsync(string eMailAddress, string userIpAddress, decimal googleReCaptchaScore, CancellationToken cancellationToken = default);
