@@ -247,7 +247,8 @@ namespace Eadent.Identity.Access
         }
 
         // NOTE: As of 29-June-2025, this cannot be an asynchronous method because it is used in the constructor of the UserSession class.
-        public (SessionStatus sessionStatusId, UserSessionEntity userSessionEntity) CheckAndUpdateUserSession(string userSessionToken, string userIpAddress)
+        public (SessionStatus sessionStatusId, UserSessionEntity userSessionEntity)
+            CheckAndUpdateUserSession(string userSessionToken, string userIpAddress)
         {
             var sessionStatusId = SessionStatus.Error;
 
