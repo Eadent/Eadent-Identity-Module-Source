@@ -1,4 +1,6 @@
-﻿namespace Eadent.Identity.Configuration
+﻿using Eadent.Common.Configuration;
+
+namespace Eadent.Identity.Configuration
 {
     public class EadentIdentitySettings
     {
@@ -9,21 +11,6 @@
         public EadentIdentitySettings()
         {
             Instance = this;
-        }
-
-        public class DatabaseSettings
-        {
-            public string DatabaseServer { get; set; }
-
-            public string DatabaseName { get; set; }
-
-            public string DatabaseSchema { get; set; }
-
-            public string ApplicationName { get; set; }
-
-            public string UserName { get; set; }
-
-            public string Password { get; set; }
         }
 
         public class SecuritySettings
@@ -68,7 +55,27 @@
 
         public class UserIdentitySettings
         {
-            public DatabaseSettings Database { get; set; }
+            public string DatabaseTypeName { get; set; }
+
+            // The following are Derived rather than explicitly Configured.
+            private int? _databaseTypeValue;
+
+            public int DatabaseTypeValue
+            {
+                get
+                {
+                    if (_databaseTypeValue == null)
+                    {
+                        _databaseTypeValue = DatabaseType.GetDatabaseType(DatabaseTypeName);
+                    }
+
+                    return _databaseTypeValue.GetValueOrDefault();
+                }
+            }
+
+            public SqlServerDatabaseSettings SqlServerDatabase { get; set; }
+
+            public PostgreSqlDatabaseSettings PostgreSqlDatabase { get; set; }
 
             public SecuritySettings Security { get; set; }
 

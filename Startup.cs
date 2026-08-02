@@ -1,21 +1,45 @@
-﻿using Eadent.Identity.Access;
+﻿using Eadent.Common.Configuration;
+using Eadent.Identity.Access;
 using Eadent.Identity.Configuration;
 using Eadent.Identity.DataAccess.EadentUserIdentity.Databases;
 using Eadent.Identity.DataAccess.EadentUserIdentity.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using System;
 
 namespace Eadent.Identity
 {
     public static class Startup
     {
-        public static void ConfigureServices(IServiceCollection services)
+        public static void ConfigureServices(IServiceCollection services, Serilog.ILogger logger)
         {
-            var databaseSettings = EadentIdentitySettings.Instance.UserIdentity.Database;
+            int eadentIdentityDatabaseTypeValue = EadentIdentitySettings.Instance.UserIdentity.DatabaseTypeValue;
 
-            string connectionString = $"Server={databaseSettings.DatabaseServer};Database={databaseSettings.DatabaseName};Application Name={databaseSettings.ApplicationName};User Id={databaseSettings.UserName};Password={databaseSettings.Password};Encrypt=false;";
+            if (eadentIdentityDatabaseTypeValue == DatabaseType.SqlServer)
+            {
+                if (logger != null)
+                    logger.Information("Using SQL Server for Eadent Identity Database: {DatabaseName}", EadentIdentitySettings.Instance.UserIdentity.SqlServerDatabase.DatabaseName);
 
-            services.AddDbContext<EadentUserIdentityDatabase>(options => options.UseSqlServer(connectionString));
+                var connectionString = EadentIdentitySettings.Instance.UserIdentity.SqlServerDatabase.ConnectionString;
+
+                services.AddDbContext<EadentUserIdentityDatabase>(options => options.UseSqlServer(connectionString));
+            }
+            else if (eadentIdentityDatabaseTypeValue == DatabaseType.PostgreSql)
+            {
+                if (logger != null)
+                    logger.Information("Using PostgreSQL for Eadent Identity Database: {DatabaseName}", EadentIdentitySettings.Instance.UserIdentity.PostgreSqlDatabase.DatabaseName);
+
+                var connectionString = EadentIdentitySettings.Instance.UserIdentity.PostgreSqlDatabase.ConnectionString;
+
+                services.AddDbContext<EadentUserIdentityDatabase>(options => options.UseNpgsql(connectionString));
+            }
+            else
+            {
+                if (logger != null)
+                    logger.Error($"Unsupported Eadent Identity Database Type Value: {eadentIdentityDatabaseTypeValue}");
+
+                throw new InvalidOperationException($"Unsupported Eadent Identity Database Type Value: {eadentIdentityDatabaseTypeValue}");
+            }
 
             services.AddScoped<IEadentUserIdentityDatabase, EadentUserIdentityDatabase>();
 

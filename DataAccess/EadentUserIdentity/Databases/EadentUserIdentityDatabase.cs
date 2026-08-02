@@ -1,7 +1,9 @@
-﻿using Eadent.Common.DataAccess.EntityFramework.Databases;
+﻿using Eadent.Common.Configuration;
+using Eadent.Common.DataAccess.EntityFramework.Databases;
 using Eadent.Identity.Configuration;
 using Eadent.Identity.DataAccess.EadentUserIdentity.Entities;
 using Microsoft.EntityFrameworkCore;
+using System;
 
 namespace Eadent.Identity.DataAccess.EadentUserIdentity.Databases
 {
@@ -28,7 +30,20 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Databases
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.HasDefaultSchema(EadentIdentitySettings.Instance.UserIdentity.Database.DatabaseSchema);
+            int eadentIdentityDatabaseTypeValue = EadentIdentitySettings.Instance.UserIdentity.DatabaseTypeValue;
+
+            if (eadentIdentityDatabaseTypeValue == DatabaseType.SqlServer)
+            {
+                modelBuilder.HasDefaultSchema(EadentIdentitySettings.Instance.UserIdentity.SqlServerDatabase.DatabaseSchema);
+            }
+            else if (eadentIdentityDatabaseTypeValue == DatabaseType.PostgreSql)
+            {
+                modelBuilder.HasDefaultSchema(EadentIdentitySettings.Instance.UserIdentity.PostgreSqlDatabase.DatabaseSchema);
+            }
+            else
+            {
+                throw new InvalidOperationException($"Unsupported Eadent Identity Database Type Value: {eadentIdentityDatabaseTypeValue}");
+            }
 
             base.OnModelCreating(modelBuilder);
         }
@@ -40,8 +55,22 @@ namespace Eadent.Identity.DataAccess.EadentUserIdentity.Databases
 
         public EadentUserIdentityDatabase(DbContextOptions<EadentUserIdentityDatabase> options) : base(options)
         {
-            DatabaseName = EadentIdentitySettings.Instance.UserIdentity.Database.DatabaseName;
-            DatabaseSchema = EadentIdentitySettings.Instance.UserIdentity.Database.DatabaseSchema;
+            int eadentIdentityDatabaseTypeValue = EadentIdentitySettings.Instance.UserIdentity.DatabaseTypeValue;
+
+            if (eadentIdentityDatabaseTypeValue == DatabaseType.SqlServer)
+            {
+                DatabaseName = EadentIdentitySettings.Instance.UserIdentity.SqlServerDatabase.DatabaseName;
+                DatabaseSchema = EadentIdentitySettings.Instance.UserIdentity.SqlServerDatabase.DatabaseSchema;
+            }
+            else if (eadentIdentityDatabaseTypeValue == DatabaseType.PostgreSql)
+            {
+                DatabaseName = EadentIdentitySettings.Instance.UserIdentity.PostgreSqlDatabase.DatabaseName;
+                DatabaseSchema = EadentIdentitySettings.Instance.UserIdentity.PostgreSqlDatabase.DatabaseSchema;
+            }
+            else
+            {
+                throw new InvalidOperationException($"Unsupported Eadent Identity Database Type Value: {eadentIdentityDatabaseTypeValue}");
+            }
         }
     }
 }

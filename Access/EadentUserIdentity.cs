@@ -1,4 +1,5 @@
-﻿using Eadent.Identity.Configuration;
+﻿using Eadent.Common.Configuration;
+using Eadent.Identity.Configuration;
 using Eadent.Identity.DataAccess.EadentUserIdentity.Databases;
 using Eadent.Identity.DataAccess.EadentUserIdentity.Entities;
 using Eadent.Identity.DataAccess.EadentUserIdentity.Repositories;
@@ -8,6 +9,7 @@ using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Npgsql;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -1695,16 +1697,46 @@ namespace Eadent.Identity.Access
                     // 1. Invalidate any User Sessions.
                     var parameters = new List<object>();
 
-                    var userSessionStatusIdParameter = new SqlParameter("@UserSessionStatusId", SqlDbType.SmallInt) { Value = UserSessionStatus.SoftDeleted };
-                    parameters.Add(userSessionStatusIdParameter);
-                    var utcNowParameter = new SqlParameter("@UtcNow", SqlDbType.DateTime) { Value = utcNow };
-                    parameters.Add(utcNowParameter);
-                    var userIdParameter = new SqlParameter("@UserId", SqlDbType.BigInt) { Value = userEntity.UserId };
-                    parameters.Add(userIdParameter);
+                    int eadentIdentityDatabaseTypeValue = EadentIdentitySettings.Instance.UserIdentity.DatabaseTypeValue;
 
-                    var sql = $"UPDATE {EadentUserIdentityDatabase.DatabaseSchema}.UserSessions SET UserSessionStatusId = @UserSessionStatusId, LastAccessedDateTimeUtc = @UtcNow WHERE UserId = @UserId;";
+                    if (eadentIdentityDatabaseTypeValue == DatabaseType.SqlServer)
+                    {
+                        // SQL Server
+                        var userSessionStatusIdParameter = new SqlParameter("@UserSessionStatusId", SqlDbType.SmallInt) { Value = UserSessionStatus.SoftDeleted };
+                        parameters.Add(userSessionStatusIdParameter);
 
-                    var rowCount = await EadentUserIdentityDatabase.ExecuteSqlRawAsync(sql, parameters, cancellationToken);
+                        var utcNowParameter = new SqlParameter("@UtcNow", SqlDbType.DateTime) { Value = utcNow };
+                        parameters.Add(utcNowParameter);
+
+                        var userIdParameter = new SqlParameter("@UserId", SqlDbType.BigInt) { Value = userEntity.UserId };
+                        parameters.Add(userIdParameter);
+
+                        var sql = $"UPDATE {EadentUserIdentityDatabase.DatabaseSchema}.UserSessions SET UserSessionStatusId = @UserSessionStatusId, LastAccessedDateTimeUtc = @UtcNow WHERE UserId = @UserId;";
+
+                        var rowCount = await EadentUserIdentityDatabase.ExecuteSqlRawAsync(sql, parameters, cancellationToken);
+                    }
+                    else if (eadentIdentityDatabaseTypeValue == DatabaseType.PostgreSql)
+                    {
+                        // PostgreSQL
+                        var userSessionStatusIdParameter = new NpgsqlParameter("@UserSessionStatusId", NpgsqlTypes.NpgsqlDbType.Smallint) { Value = UserSessionStatus.SoftDeleted };
+                        parameters.Add(userSessionStatusIdParameter);
+
+                        var utcNowParameter = new NpgsqlParameter("@UtcNow", NpgsqlTypes.NpgsqlDbType.Timestamp) { Value = utcNow };
+                        parameters.Add(utcNowParameter);
+
+                        var userIdParameter = new NpgsqlParameter("@UserId", NpgsqlTypes.NpgsqlDbType.Bigint) { Value = userEntity.UserId };
+                        parameters.Add(userIdParameter);
+
+                        var sql = $"UPDATE \"{EadentUserIdentityDatabase.DatabaseSchema}\".\"UserSessions\" SET \"UserSessionStatusId\" = @UserSessionStatusId, \"LastAccessedDateTimeUtc\" = @UtcNow WHERE \"UserId\" = @UserId;";
+
+                        var rowCount = await EadentUserIdentityDatabase.ExecuteSqlRawAsync(sql, parameters, cancellationToken);
+                    }
+                    else
+                    {
+                        Logger.LogError($"Unsupported Eadent Identity Database Type Value: {eadentIdentityDatabaseTypeValue}");
+
+                        throw new InvalidOperationException($"Unsupported Eadent Identity Database Type Value: {eadentIdentityDatabaseTypeValue}");
+                    }
                 }
 
                 deleteUserStatusId = DeleteUserStatus.SoftDeleted;
@@ -1746,23 +1778,56 @@ namespace Eadent.Identity.Access
 
                 var parameters = new List<object>();
 
-                var userIdParameter = new SqlParameter("@UserId", SqlDbType.BigInt) { Value = userEntity.UserId };
-                parameters.Add(userIdParameter);
+                int eadentIdentityDatabaseTypeValue = EadentIdentitySettings.Instance.UserIdentity.DatabaseTypeValue;
 
-                var sql = $"DELETE FROM {EadentUserIdentityDatabase.DatabaseSchema}.UserAudits WHERE UserId = @UserId;";
-                rowCount = await EadentUserIdentityDatabase.ExecuteSqlRawAsync(sql, parameters, cancellationToken);
+                if (eadentIdentityDatabaseTypeValue == DatabaseType.SqlServer)
+                {
+                    // SQL Server
+                    var userIdParameter = new SqlParameter("@UserId", SqlDbType.BigInt) { Value = userEntity.UserId };
+                    parameters.Add(userIdParameter);
 
-                sql = $"DELETE FROM {EadentUserIdentityDatabase.DatabaseSchema}.UserPasswordResets WHERE UserId = @UserId;";
-                rowCount = await EadentUserIdentityDatabase.ExecuteSqlRawAsync(sql, parameters, cancellationToken);
+                    var sql = $"DELETE FROM {EadentUserIdentityDatabase.DatabaseSchema}.UserAudits WHERE UserId = @UserId;";
+                    rowCount = await EadentUserIdentityDatabase.ExecuteSqlRawAsync(sql, parameters, cancellationToken);
 
-                sql = $"DELETE FROM {EadentUserIdentityDatabase.DatabaseSchema}.UserRoles WHERE UserId = @UserId;";
-                rowCount = await EadentUserIdentityDatabase.ExecuteSqlRawAsync(sql, parameters, cancellationToken);
+                    sql = $"DELETE FROM {EadentUserIdentityDatabase.DatabaseSchema}.UserPasswordResets WHERE UserId = @UserId;";
+                    rowCount = await EadentUserIdentityDatabase.ExecuteSqlRawAsync(sql, parameters, cancellationToken);
 
-                sql = $"DELETE FROM {EadentUserIdentityDatabase.DatabaseSchema}.UserSessions WHERE UserId = @UserId;";
-                rowCount = await EadentUserIdentityDatabase.ExecuteSqlRawAsync(sql, parameters, cancellationToken);
+                    sql = $"DELETE FROM {EadentUserIdentityDatabase.DatabaseSchema}.UserRoles WHERE UserId = @UserId;";
+                    rowCount = await EadentUserIdentityDatabase.ExecuteSqlRawAsync(sql, parameters, cancellationToken);
 
-                sql = $"DELETE FROM {EadentUserIdentityDatabase.DatabaseSchema}.Users WHERE UserId = @UserId;";
-                rowCount = await EadentUserIdentityDatabase.ExecuteSqlRawAsync(sql, parameters, cancellationToken);
+                    sql = $"DELETE FROM {EadentUserIdentityDatabase.DatabaseSchema}.UserSessions WHERE UserId = @UserId;";
+                    rowCount = await EadentUserIdentityDatabase.ExecuteSqlRawAsync(sql, parameters, cancellationToken);
+
+                    sql = $"DELETE FROM {EadentUserIdentityDatabase.DatabaseSchema}.Users WHERE UserId = @UserId;";
+                    rowCount = await EadentUserIdentityDatabase.ExecuteSqlRawAsync(sql, parameters, cancellationToken);
+                }
+                else if (eadentIdentityDatabaseTypeValue == DatabaseType.PostgreSql)
+                {
+                    // PostgreSQL
+                    var userIdParameter = new NpgsqlParameter("@UserId", NpgsqlTypes.NpgsqlDbType.Bigint) { Value = userEntity.UserId };
+                    parameters.Add(userIdParameter);
+
+                    var sql = $"DELETE FROM \"{EadentUserIdentityDatabase.DatabaseSchema}\".\"UserAudits\" WHERE \"UserId\" = @UserId;";
+                    rowCount = await EadentUserIdentityDatabase.ExecuteSqlRawAsync(sql, parameters, cancellationToken);
+
+                    sql = $"DELETE FROM \"{EadentUserIdentityDatabase.DatabaseSchema}\".\"UserPasswordResets\" WHERE \"UserId\" = @UserId;";
+                    rowCount = await EadentUserIdentityDatabase.ExecuteSqlRawAsync(sql, parameters, cancellationToken);
+
+                    sql = $"DELETE FROM \"{EadentUserIdentityDatabase.DatabaseSchema}\".\"UserRoles\" WHERE \"UserId\" = @UserId;";
+                    rowCount = await EadentUserIdentityDatabase.ExecuteSqlRawAsync(sql, parameters, cancellationToken);
+
+                    sql = $"DELETE FROM \"{EadentUserIdentityDatabase.DatabaseSchema}\".\"UserSessions\" WHERE \"UserId\" = @UserId;";
+                    rowCount = await EadentUserIdentityDatabase.ExecuteSqlRawAsync(sql, parameters, cancellationToken);
+
+                    sql = $"DELETE FROM \"{EadentUserIdentityDatabase.DatabaseSchema}\".\"Users\" WHERE \"UserId\" = @UserId;";
+                    rowCount = await EadentUserIdentityDatabase.ExecuteSqlRawAsync(sql, parameters, cancellationToken);
+                }
+                else
+                {
+                    Logger.LogError($"Unsupported Eadent Identity Database Type Value: {eadentIdentityDatabaseTypeValue}");
+
+                    throw new InvalidOperationException($"Unsupported Eadent Identity Database Type Value: {eadentIdentityDatabaseTypeValue}");
+                }
 
                 deleteUserStatusId = DeleteUserStatus.HardDeleted;
             }
